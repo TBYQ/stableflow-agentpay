@@ -1,0 +1,20 @@
+{
+  "name": "stableflow-agentpay-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Solidity contracts for StableFlow AgentPay on Flare Coston2.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:coston2": "hardhat run scripts/deploy.js --network coston2",
+    "record:local": "hardhat run scripts/record-demo-payment.js --network localhost",
+    "record:coston2": "hardhat run scripts/record-demo-payment.js --network coston2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.19"
+  }
+}

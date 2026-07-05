@@ -35,11 +35,11 @@ const (
 )
 
 type ServiceRequest struct {
-	ID          string
-	ServiceID   string
-	Description string
-	Status      ServiceRequestStatus
-	CreatedAt   time.Time
+	ID          string               `json:"id"`
+	ServiceID   string               `json:"service_id"`
+	Description string               `json:"description"`
+	Status      ServiceRequestStatus `json:"status"`
+	CreatedAt   time.Time            `json:"created_at"`
 }
 
 func NewServiceRequest(id, serviceID, description string, now time.Time) (*ServiceRequest, error) {
@@ -63,17 +63,17 @@ func NewServiceRequest(id, serviceID, description string, now time.Time) (*Servi
 }
 
 type PaymentIntent struct {
-	ID               string
-	ServiceRequestID string
-	Amount           string
-	Asset            string
-	ChainID          int64
-	Status           PaymentStatus
-	PaymentContract  string
-	WebhookURL       string
-	TxHash           string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID               string        `json:"id"`
+	ServiceRequestID string        `json:"service_request_id"`
+	Amount           string        `json:"amount"`
+	Asset            string        `json:"asset"`
+	ChainID          int64         `json:"chain_id"`
+	Status           PaymentStatus `json:"status"`
+	PaymentContract  string        `json:"payment_contract"`
+	WebhookURL       string        `json:"webhook_url"`
+	TxHash           string        `json:"tx_hash"`
+	CreatedAt        time.Time     `json:"created_at"`
+	UpdatedAt        time.Time     `json:"updated_at"`
 }
 
 func NewPaymentIntent(id, serviceRequestID, amount, asset string, chainID int64, paymentContract, webhookURL string, now time.Time) (*PaymentIntent, error) {
@@ -131,14 +131,14 @@ func (p *PaymentIntent) Confirm(txHash string, now time.Time) error {
 }
 
 type LedgerEntry struct {
-	ID              string
-	PaymentIntentID string
-	TxHash          string
-	Amount          string
-	Asset           string
-	ChainID         int64
-	EntryType       string
-	CreatedAt       time.Time
+	ID              string    `json:"id"`
+	PaymentIntentID string    `json:"payment_intent_id"`
+	TxHash          string    `json:"tx_hash"`
+	Amount          string    `json:"amount"`
+	Asset           string    `json:"asset"`
+	ChainID         int64     `json:"chain_id"`
+	EntryType       string    `json:"entry_type"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func NewLedgerEntry(id string, intent *PaymentIntent, now time.Time) (*LedgerEntry, error) {
@@ -165,14 +165,14 @@ func NewLedgerEntry(id string, intent *PaymentIntent, now time.Time) (*LedgerEnt
 }
 
 type WebhookEvent struct {
-	ID              string
-	PaymentIntentID string
-	EventType       string
-	DeliveryURL     string
-	Signature       string
-	Status          WebhookStatus
-	CreatedAt       time.Time
-	DeliveredAt     *time.Time
+	ID              string        `json:"id"`
+	PaymentIntentID string        `json:"payment_intent_id"`
+	EventType       string        `json:"event_type"`
+	DeliveryURL     string        `json:"delivery_url"`
+	Signature       string        `json:"signature"`
+	Status          WebhookStatus `json:"status"`
+	CreatedAt       time.Time     `json:"created_at"`
+	DeliveredAt     *time.Time    `json:"delivered_at,omitempty"`
 }
 
 func NewWebhookEvent(id, paymentIntentID, eventType, deliveryURL, signature string, status WebhookStatus, now time.Time) (*WebhookEvent, error) {

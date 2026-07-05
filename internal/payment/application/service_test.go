@@ -24,19 +24,24 @@ func (c fixedClock) Now() time.Time {
 
 func newTestService() (*application.Service, *memory.Store) {
 	store := memory.NewStore()
+	return newTestServiceWithStore(store, nil), store
+}
+
+func newTestServiceWithStore(store *memory.Store, verifier application.ChainPaymentVerifier) *application.Service {
 	service := application.NewService(application.Dependencies{
 		ServiceRequests: store,
 		PaymentIntents:  store,
 		Ledger:          store,
 		WebhookEvents:   store,
 		WebhookSender:   webhook.NewLocalSigner("test-secret"),
+		ChainVerifier:   verifier,
 		Summary:         summary.TemplateGenerator{},
 		Clock: fixedClock{
 			now: time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC),
 		},
 		IDs: application.NewSequentialIDGenerator(),
 	})
-	return service, store
+	return service
 }
 
 func TestPaymentConfirmationFlowCreatesLedgerWebhookAndSummary(t *testing.T) {
@@ -130,4 +135,93 @@ func TestConfirmPaymentRejectsUnknownPaymentIntent(t *testing.T) {
 	if !errors.Is(err, application.ErrNotFound) {
 		t.Fatalf("expected not found error, got %v", err)
 	}
+}
+
+func TestConfirmPaymentFromChainUsesVerifiedPaymentIntentID(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, fakeChainVerifier{
+		paymentIntentID: "pi_001",
+		txHash:          "0xabc123",
+	})
+
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		ServiceID:   "premium-market-report",
+		Description: "AI agent requests access to a paid market report",
+	})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{
+		ServiceRequestID: request.ID,
+		Amount:           "1.00",
+		Asset:            "C2FLR",
+		ChainID:          114,
+		WebhookURL:       "https://example.com/webhooks/stableflow",
+	})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+
+	result, err := service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{
+		PaymentIntentID: intent.ID,
+		TxHash:          "0xabc123",
+	})
+	if err != nil {
+		t.Fatalf("confirm payment from chain: %v", err)
+	}
+
+	if result.PaymentIntent.Status != domain.PaymentPaid {
+		t.Fatalf("expected paid status, got %s", result.PaymentIntent.Status)
+	}
+}
+
+func TestConfirmPaymentFromChainRejectsMismatchedPaymentIntentID(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, fakeChainVerifier{
+		paymentIntentID: "pi_other",
+		txHash:          "0xabc123",
+	})
+
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		ServiceID:   "premium-market-report",
+		Description: "AI agent requests access to a paid market report",
+	})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{
+		ServiceRequestID: request.ID,
+		Amount:           "1.00",
+		Asset:            "C2FLR",
+		ChainID:          114,
+	})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+
+	_, err = service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{
+		PaymentIntentID: intent.ID,
+		TxHash:          "0xabc123",
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+}
+
+type fakeChainVerifier struct {
+	paymentIntentID string
+	txHash          string
+}
+
+func (v fakeChainVerifier) VerifyPayment(ctx context.Context, txHash string) (*application.RecordedChainPayment, error) {
+	return &application.RecordedChainPayment{
+		PaymentIntentID: v.paymentIntentID,
+		TxHash:          v.txHash,
+		Asset:           "C2FLR",
+		ChainID:         114,
+	}, nil
 }

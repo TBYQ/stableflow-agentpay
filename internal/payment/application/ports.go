@@ -59,6 +59,23 @@ type WebhookSender interface {
 	SendPaymentPaid(ctx context.Context, message PaymentPaidMessage) (WebhookDelivery, error)
 }
 
+type RecordedChainPayment struct {
+	PaymentIntentID   string
+	PaymentIntentHash string
+	Payer             string
+	AmountWei         string
+	Asset             string
+	ServiceID         string
+	ChainID           int64
+	TxHash            string
+	BlockNumber       uint64
+	RecordedAt        time.Time
+}
+
+type ChainPaymentVerifier interface {
+	VerifyPayment(ctx context.Context, txHash string) (*RecordedChainPayment, error)
+}
+
 type PaymentSummaryInput struct {
 	PaymentIntent domain.PaymentIntent
 	LedgerEntry   *domain.LedgerEntry

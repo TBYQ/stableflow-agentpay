@@ -22,131 +22,171 @@ Interoperable Asset Products
 
 ### AI Agent Builders
 
-Builders who need a simple way for agents to access paid APIs, datasets, tools, or services after payment confirmation.
+Builders who need agents to access paid APIs, datasets, tools, reports, or services after payment is confirmed.
 
 ### SaaS API Providers
 
-Small teams that want to sell paid API access with on-chain payment confirmation and webhook-based service unlocks.
+Small teams that want to sell paid API access with on-chain confirmation and webhook-based service unlocks.
 
 ### Freelancers and Service Providers
 
-Independent builders who want payment links, audit trails, and automated confirmation for digital services.
+Independent builders who want testnet payment links, audit trails, and automatic confirmation for digital work.
 
 ## Problem Statement
 
-AI agents can call tools and services, but paid access still needs a reliable payment workflow.
+AI agents can call tools, but paid access still needs a payment operations layer.
 
-A usable agent payment system needs more than a wallet transfer. It needs a backend state machine, a ledger, transaction verification, retries, signed webhooks, and a clear audit trail.
+A wallet transfer alone does not provide enough infrastructure for a real service provider. The service provider still needs to know:
 
-StableFlow AgentPay provides that missing infrastructure layer.
+- Which payment belongs to which service request
+- Whether the transaction is confirmed
+- Whether the service should be unlocked
+- Whether a ledger entry was created
+- Whether a webhook was delivered
+- What happened in plain language
 
-## MVP Scope
+StableFlow AgentPay fills this gap.
 
-The hackathon MVP should support this end-to-end flow:
+## Product Scope
 
-1. Create an agent service request.
-2. Create a payment intent for that request.
-3. Pay through a Flare Coston2 transaction.
-4. Confirm the payment from a smart contract event.
-5. Mark the payment intent as paid.
-6. Write a ledger entry.
-7. Deliver a signed webhook to a mock service.
-8. Generate a short AI payment summary.
+The MVP supports this end-to-end flow:
 
-The first implementation milestone will use a backend confirmation command with a transaction hash. A Flare Coston2 event listener can be added after the DDD backend flow is working and tested.
+1. Create a service request for a paid digital service.
+2. Create a payment intent for that service request.
+3. Pay on Flare Coston2 through MetaMask.
+4. Emit `PaymentRecorded` from a Solidity contract.
+5. Verify the transaction receipt from the Go backend.
+6. Mark the payment intent as paid.
+7. Create a ledger entry.
+8. Deliver or locally record a signed webhook event.
+9. Generate a short payment summary.
 
-## Core Features
+## Implemented Features
+
+### Service Request
+
+Represents a paid service request initiated by an agent, user, or client application.
+
+Current fields:
+
+```text
+id
+service_id
+description
+status
+created_at
+```
 
 ### Payment Intent
 
-Create and track payment intents with explicit lifecycle states.
+Represents the payable object that ties backend state to an on-chain transaction.
 
-Expected states:
+Current statuses:
 
 ```text
-created
 pending_payment
 paid
 failed
 expired
 ```
 
-### On-chain Payment Confirmation
+Current behavior:
 
-Use a minimal Solidity contract on Flare Coston2 to record payment data and emit a payment event.
+- Created through the Go API
+- Validates amount, asset, chain id, and service request
+- Can be confirmed once with a transaction hash
+- Allows idempotent confirmation with the same transaction hash
+- Rejects confirmation with a different transaction after paid
 
-The event should include enough information for the backend to match it to a payment intent.
+### On-chain Payment Recording
+
+The Solidity contract `StableFlowPayment` accepts native C2FLR payments and emits:
+
+```text
+PaymentRecorded(paymentIntentHash, paymentIntentId, payer, amount, asset, serviceId, chainId, recordedAt)
+```
+
+The contract prevents duplicate recording for the same `paymentIntentId`.
+
+### Chain Receipt Verification
+
+The backend verifies a submitted transaction hash by calling Flare Coston2 JSON-RPC:
+
+```text
+eth_getTransactionReceipt
+```
+
+It parses the `PaymentRecorded` log and only confirms the payment if the event `paymentIntentId` matches the backend payment intent.
 
 ### Ledger Reconciliation
 
-Create an immutable-style ledger entry after successful payment confirmation.
+After payment confirmation, the backend writes a ledger entry with:
 
-The MVP ledger can be simple, but it should show the habit of infrastructure thinking:
-
-- Payment intent id
-- Transaction hash
-- Amount
-- Currency or asset
-- Chain id
-- Timestamp
-- Status
+```text
+payment_intent_id
+tx_hash
+amount
+asset
+chain_id
+entry_type
+created_at
+```
 
 ### Signed Webhooks
 
-Deliver a webhook after payment is confirmed.
+After payment confirmation, the backend creates a `payment.paid` webhook event.
 
-The webhook should include:
+Supported modes:
 
-- Event id
-- Event type
-- Payment intent id
-- Timestamp
-- Signature
+```text
+local  -> sign and record the event without sending HTTP
+http   -> send a signed HTTP POST to webhook_url
+```
 
-### AI Payment Summary
+### Payment Summary
 
-Generate a short summary for the user or service owner:
-
-- What was paid
-- Which service was unlocked
-- Whether the transaction was confirmed
-- Any visible risk or warning
+The current implementation uses a template-based summary generator. A real AI API can replace this adapter later without changing the domain model.
 
 ## Non-goals
 
-The MVP will not include:
+The MVP intentionally does not include:
 
 - Mainnet funds
 - Custody
-- A full merchant dashboard
-- Production compliance tooling
-- Complex DeFi strategies
+- User login
+- Merchant accounts
+- Production database
+- Complex DeFi strategy
 - Cross-chain settlement
-- Full autonomous agent key management
+- Full autonomous agent wallet management
+- Production webhook retry queue
 
 ## Success Criteria
 
 The project is successful for the hackathon if a judge can see:
 
-- A public GitHub repository with clear documentation
-- A DDD-oriented Go backend with domain, application, ports, and adapters
-- Unit tests around payment status transitions and application use cases
-- A working local demo
-- A deployed or deployable Flare Coston2 contract
-- A payment intent created from the backend
-- A testnet payment confirmation event
-- A ledger entry created from the event
-- A signed webhook delivery
-- A short demo video walking through the flow
+- Public GitHub repository
+- Clear README and docs
+- DDD-oriented Go backend
+- Solidity contract with tests
+- Flare Coston2 deployment path
+- MetaMask demo UI
+- Payment intent lifecycle
+- Receipt-based payment confirmation
+- Ledger entry creation
+- Signed webhook event
+- Payment summary
+- Short demo video
 
 ## Resume Value
 
-This project should demonstrate:
+This project demonstrates:
 
 - Backend system design
 - Payment infrastructure thinking
+- DDD and Clean Architecture in Go
 - EVM integration
-- Event-driven architecture
-- Idempotency and reconciliation
-- Webhook delivery
-- Practical AI integration
+- Flare Coston2 transaction verification
+- Webhook signatures
+- Ledger reconciliation
+- Practical AI-agent payment workflow

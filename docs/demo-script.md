@@ -6,73 +6,121 @@ Target length: 2 to 3 minutes.
 
 StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare.
 
-It helps AI agents and paid services use payment intents, on-chain confirmation, ledger reconciliation, and signed webhooks instead of relying on a raw wallet transfer.
+It helps AI agents and paid services use payment intents, Flare Coston2 transaction confirmation, ledger reconciliation, signed webhooks, and payment summaries.
 
 ## 2. Problem
 
-AI agents can call tools and APIs, but paid access needs a payment operations layer.
+AI agents can call tools and APIs, but paid access needs more than a wallet transfer.
 
-For a real service provider, a payment flow needs:
+A service provider needs to know:
 
-- A payment intent
-- A confirmed on-chain transaction
-- A backend state transition
-- A ledger entry
-- A signed webhook
-- A clear audit trail
+- What was requested
+- Which payment intent was created
+- Which chain transaction confirmed the payment
+- Whether a ledger entry was created
+- Whether the paid service was unlocked
+- Whether a webhook was signed and delivered
 
-## 3. Walkthrough
+## 3. Show The Architecture
 
-Show the service request:
-
-```text
-An AI agent requests access to a paid report or paid API.
-```
-
-Show the payment intent:
+Point to the repository structure:
 
 ```text
-StableFlow creates a payment intent for the request.
+Go backend: DDD payment workflow
+Solidity: minimal on-chain payment recording
+React UI: MetaMask demo
 ```
 
-Show the Flare transaction:
+Explain that the smart contract is intentionally small and the backend owns the payment operations workflow.
+
+## 4. Live Walkthrough
+
+### Step 1: Create payment intent
+
+Open the web UI and click:
 
 ```text
-The user pays on Flare Coston2 through MetaMask.
+Create Intent
 ```
 
-Show backend confirmation:
+Explain:
 
 ```text
-The backend detects the PaymentRecorded event and marks the intent as paid.
+The backend creates a service request and a payment intent. The payment intent starts as pending_payment.
 ```
 
-Show ledger:
+### Step 2: Connect wallet
+
+Click:
 
 ```text
-A ledger entry is created for reconciliation.
+Connect MetaMask
 ```
 
-Show webhook:
+Explain:
 
 ```text
-A signed webhook unlocks the paid service.
+The UI asks MetaMask to add or switch to Flare Coston2, chain id 114.
 ```
 
-Show AI summary:
+### Step 3: Pay on Flare Coston2
+
+Click:
 
 ```text
-The system generates a short payment summary for the service owner or agent.
+Pay on Flare
 ```
 
-## 4. Why Flare
+Explain:
 
-Flare gives us an EVM-compatible testnet, so the MVP can use Solidity, MetaMask, and standard event listening.
+```text
+The user sends a native C2FLR testnet payment to StableFlowPayment.sol.
+The contract emits PaymentRecorded with the backend paymentIntentId.
+```
 
-Future versions can use Flare-native data features for verified prices or external state.
+### Step 4: Confirm backend
 
-## 5. Close
+Click:
 
-StableFlow AgentPay turns a simple on-chain payment into a complete payment workflow for AI agents and paid services.
+```text
+Confirm Backend
+```
 
-The MVP demonstrates the infrastructure pattern: intent, confirmation, reconciliation, webhook, and summary.
+Explain:
+
+```text
+The backend fetches the transaction receipt from Flare Coston2, parses PaymentRecorded, validates the payment intent id, and marks the intent as paid.
+```
+
+### Step 5: Show results
+
+Point to:
+
+- Payment intent status
+- Transaction hash
+- Ledger entry
+- Webhook event
+- Payment summary
+- Coston2 explorer link
+
+## 5. Closing
+
+StableFlow AgentPay turns a simple on-chain payment into a payment operations layer for AI agents and paid services.
+
+The MVP demonstrates:
+
+- Payment intents
+- Flare Coston2 transaction confirmation
+- Ledger reconciliation
+- Signed webhook delivery
+- Clean backend architecture
+
+## Backup Demo Path
+
+If the testnet, wallet, or faucet is unavailable during recording, use the local confirmation endpoint:
+
+```text
+POST /v1/payment-intents/{id}/transaction
+```
+
+This still demonstrates the backend payment workflow, but the preferred demo is `/chain-transaction` with a real Flare Coston2 receipt.

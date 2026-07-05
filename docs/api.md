@@ -1,10 +1,12 @@
-# API Draft
+# API
 
-This document describes the intended API shape for the StableFlow AgentPay MVP.
+The Go backend exposes a small JSON API for the StableFlow AgentPay MVP.
 
-The API is intentionally small for the hackathon version.
+Default local base URL:
 
-The first Go implementation exposes these endpoints through a standard HTTP adapter. The same application use cases can later be reused by a frontend, CLI, or Flare event listener.
+```text
+http://127.0.0.1:8080
+```
 
 ## Create Service Request
 
@@ -27,7 +29,9 @@ Response:
 {
   "id": "sr_001",
   "service_id": "premium-market-report",
-  "status": "created"
+  "description": "AI agent requests access to a paid market report",
+  "status": "created",
+  "created_at": "2026-07-05T10:00:00Z"
 }
 ```
 
@@ -42,10 +46,11 @@ Request:
 ```json
 {
   "service_request_id": "sr_001",
-  "amount": "1.00",
+  "amount": "0.001",
   "asset": "C2FLR",
   "chain_id": 114,
-  "webhook_url": "https://example.com/webhooks/stableflow"
+  "payment_contract": "0x0000000000000000000000000000000000000000",
+  "webhook_url": "https://webhook.site/your-demo-url"
 }
 ```
 
@@ -54,10 +59,16 @@ Response:
 ```json
 {
   "id": "pi_001",
+  "service_request_id": "sr_001",
+  "amount": "0.001",
+  "asset": "C2FLR",
+  "chain_id": 114,
   "status": "pending_payment",
-  "chain": "flare-coston2",
   "payment_contract": "0x0000000000000000000000000000000000000000",
-  "payment_reference": "pi_001"
+  "webhook_url": "https://webhook.site/your-demo-url",
+  "tx_hash": "",
+  "created_at": "2026-07-05T10:00:00Z",
+  "updated_at": "2026-07-05T10:00:00Z"
 }
 ```
 
@@ -73,19 +84,25 @@ Response:
 {
   "id": "pi_001",
   "service_request_id": "sr_001",
+  "amount": "0.001",
+  "asset": "C2FLR",
+  "chain_id": 114,
   "status": "paid",
+  "payment_contract": "0x0000000000000000000000000000000000000000",
+  "webhook_url": "https://webhook.site/your-demo-url",
   "tx_hash": "0xabc123",
-  "ledger_entry_id": "le_001"
+  "created_at": "2026-07-05T10:00:00Z",
+  "updated_at": "2026-07-05T10:03:00Z"
 }
 ```
 
-## Submit Transaction Hash
+## Confirm Payment With Submitted Hash
 
 ```text
 POST /v1/payment-intents/{id}/transaction
 ```
 
-This endpoint is useful for the first backend milestone if the backend is not yet running a full realtime Flare event subscription.
+This endpoint trusts the submitted tx hash and is useful for early local demos.
 
 Request:
 
@@ -99,9 +116,62 @@ Response:
 
 ```json
 {
-  "id": "pi_001",
-  "status": "paid",
+  "payment_intent": {
+    "id": "pi_001",
+    "status": "paid",
+    "tx_hash": "0xabc123"
+  },
+  "ledger_entry": {
+    "id": "le_001",
+    "payment_intent_id": "pi_001",
+    "tx_hash": "0xabc123",
+    "amount": "0.001",
+    "asset": "C2FLR",
+    "chain_id": 114,
+    "entry_type": "payment_confirmed"
+  },
+  "webhook_event": {
+    "id": "evt_001",
+    "payment_intent_id": "pi_001",
+    "event_type": "payment.paid",
+    "status": "delivered"
+  },
+  "summary": "Payment intent pi_001 was confirmed on chain 114 with transaction 0xabc123..."
+}
+```
+
+## Confirm Payment From Flare Receipt
+
+```text
+POST /v1/payment-intents/{id}/chain-transaction
+```
+
+This endpoint verifies the transaction receipt through Flare Coston2 JSON-RPC and parses the `PaymentRecorded` event emitted by `StableFlowPayment`.
+
+The backend confirms the payment only if the event `paymentIntentId` matches the requested backend payment intent id.
+
+Request:
+
+```json
+{
   "tx_hash": "0xabc123"
+}
+```
+
+Response shape is the same as `/transaction`.
+
+## Generate Payment Summary
+
+```text
+POST /v1/payment-intents/{id}/summary
+```
+
+Response:
+
+```json
+{
+  "payment_intent_id": "pi_001",
+  "summary": "Payment intent pi_001 was confirmed on chain 114 with transaction 0xabc123..."
 }
 ```
 
@@ -119,10 +189,12 @@ Response:
     {
       "id": "le_001",
       "payment_intent_id": "pi_001",
-      "amount": "1.00",
-      "asset": "C2FLR",
       "tx_hash": "0xabc123",
-      "entry_type": "payment_confirmed"
+      "amount": "0.001",
+      "asset": "C2FLR",
+      "chain_id": 114,
+      "entry_type": "payment_confirmed",
+      "created_at": "2026-07-05T10:03:00Z"
     }
   ]
 }
@@ -140,52 +212,63 @@ Response:
 {
   "items": [
     {
-      "id": "we_001",
+      "id": "evt_001",
       "payment_intent_id": "pi_001",
       "event_type": "payment.paid",
-      "status": "delivered"
+      "delivery_url": "https://webhook.site/your-demo-url",
+      "signature": "t=1783160000,v1=...",
+      "status": "delivered",
+      "created_at": "2026-07-05T10:03:00Z",
+      "delivered_at": "2026-07-05T10:03:00Z"
     }
   ]
 }
 ```
 
-## Generate Payment Summary
-
-```text
-POST /v1/payment-intents/{id}/summary
-```
-
-Response:
-
-```json
-{
-  "payment_intent_id": "pi_001",
-  "summary": "Payment pi_001 was confirmed on Flare Coston2 and unlocked the premium market report service."
-}
-```
-
 ## Webhook Payload
 
-Example event:
+When `STABLEFLOW_WEBHOOK_DELIVERY=http`, the backend sends:
 
 ```json
 {
   "id": "evt_001",
   "type": "payment.paid",
-  "created_at": "2026-07-04T12:00:00Z",
+  "created_at": "2026-07-05T10:03:00Z",
   "data": {
     "payment_intent_id": "pi_001",
     "service_request_id": "sr_001",
-    "amount": "1.00",
+    "amount": "0.001",
     "asset": "C2FLR",
+    "chain_id": 114,
     "tx_hash": "0xabc123",
     "chain": "flare-coston2"
   }
 }
 ```
 
-Signature header:
+Headers:
 
 ```text
+Content-Type: application/json
+StableFlow-Event-ID: evt_001
 StableFlow-Signature: t=timestamp,v1=hmac_signature
+```
+
+## Error Shape
+
+Errors are returned as:
+
+```json
+{
+  "error": "validation failed: service id is required"
+}
+```
+
+Common status codes:
+
+```text
+400 -> validation error or bad request
+404 -> missing entity
+409 -> invalid payment status transition
+500 -> unexpected server error
 ```

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/domain"
 )
@@ -13,6 +14,7 @@ type Dependencies struct {
 	Ledger          LedgerRepository
 	WebhookEvents   WebhookEventRepository
 	WebhookSender   WebhookSender
+	ChainVerifier   ChainPaymentVerifier
 	Summary         SummaryGenerator
 	Clock           Clock
 	IDs             IDGenerator
@@ -24,6 +26,7 @@ type Service struct {
 	ledger          LedgerRepository
 	webhookEvents   WebhookEventRepository
 	webhookSender   WebhookSender
+	chainVerifier   ChainPaymentVerifier
 	summary         SummaryGenerator
 	clock           Clock
 	ids             IDGenerator
@@ -36,6 +39,7 @@ func NewService(deps Dependencies) *Service {
 		ledger:          deps.Ledger,
 		webhookEvents:   deps.WebhookEvents,
 		webhookSender:   deps.WebhookSender,
+		chainVerifier:   deps.ChainVerifier,
 		summary:         deps.Summary,
 		clock:           deps.Clock,
 		ids:             deps.IDs,
@@ -100,6 +104,11 @@ type ConfirmPaymentCommand struct {
 	TxHash          string
 }
 
+type ConfirmPaymentFromChainCommand struct {
+	PaymentIntentID string
+	TxHash          string
+}
+
 type ConfirmPaymentResult struct {
 	PaymentIntent *domain.PaymentIntent
 	LedgerEntry   *domain.LedgerEntry
@@ -107,6 +116,30 @@ type ConfirmPaymentResult struct {
 	Summary       string
 	WebhookError  error
 	SummaryError  error
+}
+
+func (s *Service) ConfirmPaymentFromChain(ctx context.Context, cmd ConfirmPaymentFromChainCommand) (*ConfirmPaymentResult, error) {
+	if s.chainVerifier == nil {
+		return nil, fmt.Errorf("%w: chain payment verifier is not configured", domain.ErrValidation)
+	}
+
+	chainPayment, err := s.chainVerifier.VerifyPayment(ctx, cmd.TxHash)
+	if err != nil {
+		return nil, err
+	}
+	if chainPayment.PaymentIntentID != cmd.PaymentIntentID {
+		return nil, fmt.Errorf(
+			"%w: chain event payment intent %s does not match requested payment intent %s",
+			domain.ErrValidation,
+			chainPayment.PaymentIntentID,
+			cmd.PaymentIntentID,
+		)
+	}
+
+	return s.ConfirmPayment(ctx, ConfirmPaymentCommand{
+		PaymentIntentID: cmd.PaymentIntentID,
+		TxHash:          chainPayment.TxHash,
+	})
 }
 
 func (s *Service) ConfirmPayment(ctx context.Context, cmd ConfirmPaymentCommand) (*ConfirmPaymentResult, error) {

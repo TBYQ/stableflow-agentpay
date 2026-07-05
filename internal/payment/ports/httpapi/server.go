@@ -25,7 +25,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/v1/payment-intents/", s.handlePaymentIntentByID)
 	mux.HandleFunc("/v1/ledger", s.handleLedger)
 	mux.HandleFunc("/v1/webhook-events", s.handleWebhookEvents)
-	return mux
+	return withCORS(mux)
 }
 
 type createServiceRequestBody struct {
@@ -117,6 +117,11 @@ func (s *Server) handlePaymentIntentByID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if len(parts) == 2 && parts[1] == "chain-transaction" && r.Method == http.MethodPost {
+		s.handleChainPaymentTransaction(w, r, id)
+		return
+	}
+
 	if len(parts) == 2 && parts[1] == "summary" && r.Method == http.MethodPost {
 		summary, err := s.service.GeneratePaymentSummary(r.Context(), id)
 		if err != nil {
@@ -145,6 +150,30 @@ func (s *Server) handlePaymentTransaction(w http.ResponseWriter, r *http.Request
 	}
 
 	result, err := s.service.ConfirmPayment(r.Context(), application.ConfirmPaymentCommand{
+		PaymentIntentID: id,
+		TxHash:          body.TxHash,
+	})
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"payment_intent": result.PaymentIntent,
+		"ledger_entry":   result.LedgerEntry,
+		"webhook_event":  result.WebhookEvent,
+		"summary":        result.Summary,
+	})
+}
+
+func (s *Server) handleChainPaymentTransaction(w http.ResponseWriter, r *http.Request, id string) {
+	var body submitTransactionBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	result, err := s.service.ConfirmPaymentFromChain(r.Context(), application.ConfirmPaymentFromChainCommand{
 		PaymentIntentID: id,
 		TxHash:          body.TxHash,
 	})
@@ -210,4 +239,22 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The hackathon UI runs on Vite while the Go API runs on :8080.
+		// Keep CORS permissive for the local demo; tighten this before any
+		// production-style deployment.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

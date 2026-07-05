@@ -4,15 +4,27 @@
 
 StableFlow AgentPay is a backend-first payment infrastructure prototype for AI agents and paid services on Flare.
 
-The system uses a simple EVM contract for on-chain payment confirmation and a Go backend for the infrastructure logic around payment state, ledger reconciliation, webhook delivery, and AI summaries.
+The system is intentionally split into three parts:
 
-The Go backend follows a lightweight DDD and Clean Architecture style inspired by the ThreeDotsLabs Wild Workouts example:
+```text
+Go backend        -> payment operations and business workflow
+Solidity contract -> minimal on-chain payment recording
+React UI          -> hackathon demo and MetaMask interaction
+```
 
-- Domain code owns payment behavior and invariants.
-- Application code orchestrates use cases.
-- Ports describe dependencies needed by use cases.
-- Adapters implement storage, webhook delivery, summaries, and HTTP.
-- Framework and infrastructure details do not leak into the domain model.
+The product value is in the full payment workflow, not in a complex smart contract.
+
+## DDD Style
+
+The Go backend follows a lightweight DDD and Clean Architecture style inspired by the ThreeDotsLabs Wild Workouts example.
+
+The dependency direction is:
+
+```text
+HTTP / adapters -> application -> domain
+```
+
+Domain code does not import HTTP, SQL, Flare RPC, webhook clients, or frontend code.
 
 ## System Flow
 
@@ -20,177 +32,186 @@ The Go backend follows a lightweight DDD and Clean Architecture style inspired b
 AI Agent or Service Client
         |
         v
-Go API: Create Service Request
+HTTP API: create service request
         |
         v
-Go API: Create Payment Intent
+HTTP API: create payment intent
         |
         v
-Flare Coston2 Payment Transaction
+React UI calls MetaMask
         |
         v
-Solidity Contract Emits PaymentRecorded
+Flare Coston2 transaction
         |
         v
-Go Event Listener
+StableFlowPayment.sol emits PaymentRecorded
         |
         v
-Payment State Update
+HTTP API receives tx hash
         |
         v
-Ledger Entry
+Flare receipt verifier parses PaymentRecorded
         |
         v
-Signed Webhook Delivery
+Application confirms payment intent
         |
         v
-Paid Service Unlock
+Ledger entry is created
         |
         v
-AI Payment Summary
+Signed webhook event is delivered or recorded
+        |
+        v
+Payment summary is returned
 ```
 
-## Components
+## Backend Packages
 
-### Domain Layer
+### `cmd/stableflow-api`
 
-Package:
-
-```text
-internal/payment/domain
-```
+Application entrypoint.
 
 Responsibilities:
 
-- Service request model
-- Payment intent model
-- Ledger entry model
-- Webhook event model
-- Payment status transitions
-- Domain validation
+- Create in-memory store
+- Configure webhook sender
+- Configure Flare receipt verifier when a contract address is present
+- Start HTTP server
 
-This layer should not import HTTP, SQL, Flare SDKs, or AI clients.
+### `internal/payment/domain`
 
-### Application Layer
-
-Package:
-
-```text
-internal/payment/application
-```
+Domain layer.
 
 Responsibilities:
 
-- Create agent service requests
+- ServiceRequest model
+- PaymentIntent model
+- LedgerEntry model
+- WebhookEvent model
+- Validation
+- Payment status transition rules
+- Idempotent payment confirmation behavior
+
+This package is the center of the payment domain.
+
+### `internal/payment/application`
+
+Application layer.
+
+Responsibilities:
+
+- Create service requests
 - Create payment intents
-- Expose payment status
-- Store ledger entries
-- Trigger webhook delivery
-- Provide AI-generated summaries
-
-The application layer depends on interfaces instead of concrete storage or external clients.
-
-### Ports
-
-Defined in:
-
-```text
-internal/payment/application
-```
-
-Expected ports:
-
-- Service request repository
-- Payment intent repository
-- Ledger repository
-- Webhook event repository
-- Webhook sender
-- Payment summary generator
-- Clock
-- ID generator
-
-### Adapters
-
-Packages:
-
-```text
-internal/payment/adapters/memory
-internal/payment/adapters/webhook
-internal/payment/adapters/summary
-internal/payment/ports/httpapi
-```
-
-Responsibilities:
-
-- In-memory persistence for the first MVP
-- Signed webhook delivery or local webhook simulation
-- Template-based summary generation
-- HTTP JSON API
-
-### Future Chain Adapter
-
-Future package:
-
-```text
-internal/payment/adapters/chain/flare
-```
-
-Responsibilities:
-
-- Connect to Flare Coston2 RPC
-- Read PaymentRecorded events
-- Convert on-chain events into application commands
-
-The first backend milestone can accept a submitted transaction hash through the API. Flare event listening can be added after the core domain flow is stable.
-
-### Solidity Payment Contract
-
-Responsibilities:
-
-- Accept or record a testnet payment
-- Emit a payment event
-- Include enough identifiers for backend reconciliation
-
-The MVP contract should stay intentionally small. The product value comes from the complete payment workflow, not from a complex contract.
-
-### Event Listener
-
-Responsibilities:
-
-- Connect to Flare Coston2 RPC
-- Subscribe to or poll for payment events
-- Match events to payment intents
-- Apply idempotent payment status updates
+- Confirm payment from a submitted hash
+- Confirm payment from a verified Flare receipt
 - Create ledger entries
+- Send or record webhook events
+- Generate payment summaries
 
-### Ledger
+This package defines ports for repositories, webhook sender, chain verifier, summary generator, clock, and ID generator.
+
+### `internal/payment/adapters/memory`
+
+In-memory persistence adapter.
+
+Used for the hackathon MVP so the local demo has no database requirement.
+
+### `internal/payment/adapters/webhook`
+
+Webhook adapter package.
+
+Implementations:
+
+- `LocalSigner`: signs and records webhook delivery without sending HTTP
+- `HTTPSender`: sends a signed `payment.paid` webhook to a URL such as webhook.site
+
+### `internal/payment/adapters/summary`
+
+Template summary adapter.
+
+This keeps the current demo deterministic. A real AI API can replace this adapter later.
+
+### `internal/payment/adapters/chain/flare`
+
+Flare receipt verifier.
 
 Responsibilities:
 
-- Record confirmed payment facts
-- Support demo-friendly payment history
-- Make reconciliation visible to judges
+- Call Flare Coston2 JSON-RPC
+- Fetch transaction receipt by tx hash
+- Parse `PaymentRecorded` ABI log data
+- Return the chain payment data to the application layer
 
-### Webhook Delivery
+The current implementation verifies submitted transaction hashes. A background event listener can be added later.
 
-Responsibilities:
+### `internal/payment/ports/httpapi`
 
-- Build a webhook payload
-- Sign the payload
-- Send it to a mock paid service
-- Track delivery status
-- Support simple retry behavior
-
-### Demo Web App
+HTTP JSON adapter.
 
 Responsibilities:
 
-- Create a payment intent
-- Show payment instructions
-- Show transaction status
-- Show ledger and webhook results
+- Expose REST-style API endpoints
+- Decode request bodies
+- Call application use cases
+- Return JSON responses
+- Provide local-demo CORS headers
 
-## Data Model Draft
+## Solidity Contract
+
+Path:
+
+```text
+contracts/contracts/StableFlowPayment.sol
+```
+
+Responsibilities:
+
+- Accept a native C2FLR payment
+- Validate payment intent id and service id
+- Prevent duplicate recording for the same payment intent
+- Emit `PaymentRecorded`
+- Expose `getPaymentByIntentId`
+
+The contract avoids complex merchant, custody, and settlement logic because those are outside the MVP.
+
+## Frontend
+
+Path:
+
+```text
+web/
+```
+
+Responsibilities:
+
+- Create service request through the Go API
+- Create payment intent through the Go API
+- Add or switch MetaMask to Flare Coston2
+- Call `recordPayment` on the deployed contract
+- Send the tx hash back to the backend
+- Display payment intent state and summary
+
+## State Machine
+
+Current payment status flow:
+
+```text
+pending_payment
+        |
+        v
+paid
+```
+
+Reserved states:
+
+```text
+failed
+expired
+```
+
+The domain currently allows repeated confirmation with the same tx hash and rejects a different tx hash after the intent is already paid.
+
+## Data Model
 
 ### ServiceRequest
 
@@ -212,6 +233,7 @@ asset
 chain_id
 status
 payment_contract
+webhook_url
 tx_hash
 created_at
 updated_at
@@ -243,34 +265,11 @@ created_at
 delivered_at
 ```
 
-## State Machine
-
-```text
-created
-  |
-  v
-pending_payment
-  |
-  v
-paid
-  |
-  v
-webhook_delivered
-```
-
-Failure paths:
-
-```text
-pending_payment -> expired
-pending_payment -> failed
-webhook_delivery -> webhook_failed
-```
-
 ## Hackathon Architecture Principle
 
 Keep the smart contract minimal and make the infrastructure workflow excellent.
 
-The judging story should be:
+The judging story:
 
 ```text
 This is not only a wallet transfer.

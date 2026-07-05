@@ -1,157 +1,175 @@
 # Build Plan
 
-This plan targets a practical hackathon MVP before the Flare Summer Signal submission deadline.
+This document tracks what has been implemented and what remains before a polished Flare Summer Signal submission.
 
-## Phase 1: Documentation and Scope
+## Completed
 
-Target dates:
+### Documentation and Scope
 
-```text
-2026-07-04 to 2026-07-06
-```
+Done:
 
-Deliverables:
+- README positioned for Flare Summer Signal
+- Product requirements
+- Architecture document
+- API document
+- Demo script
+- Build plan
 
-- Update README for Flare positioning
-- Write product requirements
-- Write architecture document
-- Write API draft
-- Define demo script
+### DDD Go Backend
 
-Exit criteria:
+Done:
 
-- A judge can understand the project from GitHub without a live demo
-- The MVP scope is small enough to build
+- `cmd/stableflow-api`
+- Domain models
+- Application service
+- Repository ports
+- Webhook sender port
+- Chain verifier port
+- Summary generator port
+- In-memory store
+- HTTP API adapter
+- Local CORS for Vite demo
+- Unit tests
 
-## Phase 2: Backend Skeleton
+### Payment Workflow
 
-Target dates:
+Done:
 
-```text
-2026-07-07 to 2026-07-13
-```
+- Create service request
+- Create payment intent
+- Confirm payment with submitted tx hash
+- Confirm payment with verified Flare receipt
+- Create ledger entry
+- Create webhook event
+- Generate payment summary
 
-Deliverables:
+### Flare / Contract Integration
 
-- Go API project using DDD-style packages
-- Service request endpoint
-- Payment intent endpoint
-- In-memory persistence adapter
-- Ledger model
-- Webhook event model
-- Domain unit tests
-- Application service unit tests
+Done:
 
-Exit criteria:
+- `StableFlowPayment.sol`
+- Native C2FLR payment recording
+- `PaymentRecorded` event
+- Duplicate payment intent protection
+- Hardhat config for Coston2
+- Deploy script
+- Demo payment script
+- Solidity tests
 
-- Local API can create a service request
-- Local API can create and fetch a payment intent
-- Local API can create a ledger entry after a mock confirmation
-- Tests cover the main payment status transition and confirmation use case
+### Web Demo
 
-## Phase 3: Flare Coston2 Integration
+Done:
 
-Target dates:
+- React + Vite + TypeScript UI
+- MetaMask network setup for Coston2
+- Create payment intent flow
+- Call `recordPayment`
+- Submit tx hash to backend
+- Display payment state and summary
 
-```text
-2026-07-14 to 2026-07-24
-```
+## Verified Locally
 
-Deliverables:
-
-- Minimal Solidity payment contract
-- Hardhat or Foundry deployment setup
-- Flare Coston2 deployment notes
-- PaymentRecorded event
-- Backend event listener or transaction confirmation workflow
-
-Exit criteria:
-
-- A testnet transaction can be linked to a payment intent
-- The backend can mark a payment intent as paid
-- The transaction hash is visible in the demo
-
-## Phase 4: Webhook and AI Summary
-
-Target dates:
+The following checks have passed locally:
 
 ```text
-2026-07-25 to 2026-08-02
+go test ./...
+cd contracts && npm test
+cd web && npm run build
+browser opened the web UI and Create Intent successfully called the Go API
 ```
 
-Deliverables:
+## Remaining Before Submission
 
-- Signed webhook payload
-- Mock paid service receiver
-- Delivery status tracking
-- Simple retry behavior
-- AI payment summary endpoint
+### Deploy Contract To Coston2
 
-Exit criteria:
+Needs:
 
-- Paid payment intent triggers a webhook
-- Webhook payload includes signature metadata
-- AI summary explains the payment status
+- Funded Coston2 test wallet
+- `contracts/.env`
+- `COSTON2_PRIVATE_KEY`
 
-## Phase 5: Demo UI and Polish
+Command:
 
-Target dates:
+```bash
+cd contracts
+npm run deploy:coston2
+```
+
+Output to capture:
 
 ```text
-2026-08-03 to 2026-08-10
+StableFlowPayment deployed to: 0x...
 ```
 
-Deliverables:
+### Wire Contract Address
 
-- Minimal web UI or API demo page
-- Clear README run instructions
-- Screenshots
-- Architecture diagram
-- Public demo video draft
-
-Exit criteria:
-
-- Demo can be completed in under 3 minutes
-- README has setup and demo instructions
-- All core flow steps are visible
-
-## Phase 6: Submission
-
-Target dates:
+Set backend:
 
 ```text
-2026-08-11 to 2026-08-14
+STABLEFLOW_PAYMENT_CONTRACT=0x...
 ```
 
-Deliverables:
+Set frontend:
 
-- Final README
+```text
+VITE_STABLEFLOW_PAYMENT_CONTRACT=0x...
+```
+
+### Record Real Demo
+
+Preferred demo flow:
+
+```text
+Create payment intent
+Connect MetaMask
+Pay on Flare Coston2
+Confirm backend through /chain-transaction
+Show ledger/webhook/summary
+Open transaction in Coston2 Explorer
+```
+
+### Prepare DoraHacks Submission
+
+Submission assets:
+
+- GitHub repository
 - Demo video
-- DoraHacks submission text
-- Contract address and deployment details, if available
+- Short description
+- Target users
+- How the project uses Flare
+- Contract address
+- Example transaction hash
 - Short roadmap
 
-Exit criteria:
+## Optional Improvements
 
-- GitHub repository is public
-- Demo video is public
-- Submission form is complete
-- Project story clearly matches Flare Summer Signal
+If time remains:
+
+- Replace in-memory store with SQLite or PostgreSQL
+- Add background event listener
+- Add real AI summary adapter
+- Add webhook retry queue
+- Add frontend ledger/webhook tables
+- Add contract address and transaction hash examples to README
+- Add screenshots to docs
 
 ## Risk Control
 
-If time becomes tight, keep these features:
+If time becomes tight, keep the core demo:
 
-- Payment intent API
-- Minimal Flare testnet payment event
+- Public GitHub repository
+- Go API
+- Solidity contract
+- MetaMask transaction
+- Receipt verification
 - Ledger entry
-- Signed webhook
+- Signed webhook event
 - Demo video
 
-Cut these features first:
+Cut first:
 
-- Complex UI
-- Multi-asset support
-- Production database setup
-- Advanced AI agent autonomy
-- Flare-native data integrations
+- Production database
+- Advanced UI polish
+- Real AI integration
+- Background listener
+- Deployment automation
