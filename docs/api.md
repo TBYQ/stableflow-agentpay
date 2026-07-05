@@ -4,6 +4,8 @@ This document describes the intended API shape for the StableFlow AgentPay MVP.
 
 The API is intentionally small for the hackathon version.
 
+The first Go implementation exposes these endpoints through a standard HTTP adapter. The same application use cases can later be reused by a frontend, CLI, or Flare event listener.
+
 ## Create Service Request
 
 ```text
@@ -83,7 +85,7 @@ Response:
 POST /v1/payment-intents/{id}/transaction
 ```
 
-This endpoint is useful for the MVP demo if the backend is not yet running a full realtime event subscription.
+This endpoint is useful for the first backend milestone if the backend is not yet running a full realtime Flare event subscription.
 
 Request:
 
@@ -98,7 +100,7 @@ Response:
 ```json
 {
   "id": "pi_001",
-  "status": "pending_confirmation",
+  "status": "paid",
   "tx_hash": "0xabc123"
 }
 ```

@@ -53,6 +53,8 @@ The hackathon MVP should support this end-to-end flow:
 7. Deliver a signed webhook to a mock service.
 8. Generate a short AI payment summary.
 
+The first implementation milestone will use a backend confirmation command with a transaction hash. A Flare Coston2 event listener can be added after the DDD backend flow is working and tested.
+
 ## Core Features
 
 ### Payment Intent
@@ -127,6 +129,8 @@ The MVP will not include:
 The project is successful for the hackathon if a judge can see:
 
 - A public GitHub repository with clear documentation
+- A DDD-oriented Go backend with domain, application, ports, and adapters
+- Unit tests around payment status transitions and application use cases
 - A working local demo
 - A deployed or deployable Flare Coston2 contract
 - A payment intent created from the backend

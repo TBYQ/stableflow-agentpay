@@ -79,11 +79,17 @@ Future versions can add Flare-native data features such as FTSO or Flare Data Co
 ## Repository Plan
 
 ```text
-api/                 Go backend service
-contracts/           Solidity contracts and deployment scripts
-web/                 Minimal demo UI
-docs/                Product, architecture, API, and demo docs
+cmd/stableflow-api/                 HTTP API entrypoint
+internal/payment/domain/            Payment domain model and invariants
+internal/payment/application/       Use cases and ports
+internal/payment/adapters/          In-memory, webhook, and summary adapters
+internal/payment/ports/httpapi/     HTTP JSON adapter
+contracts/                          Planned Solidity contracts and deployment scripts
+web/                                Planned minimal demo UI
+docs/                               Product, architecture, API, and demo docs
 ```
+
+The backend follows a lightweight DDD and Clean Architecture style: domain logic stays independent from HTTP, storage, webhook delivery, chain listeners, or AI clients.
 
 ## Documentation
 
@@ -105,6 +111,16 @@ docs/                Product, architecture, API, and demo docs
 
 ## Current Status
 
-Planning and documentation phase.
+DDD-oriented Go backend skeleton is in progress.
+
+Current backend milestone:
+
+- Domain models for service requests, payment intents, ledger entries, and webhook events
+- Application use cases for creating service requests, creating payment intents, confirming payment, listing ledger entries, listing webhook events, and generating summaries
+- In-memory repository adapter
+- Local signed webhook adapter
+- Template summary adapter
+- HTTP JSON adapter
+- Unit tests for domain transitions and application confirmation flow
 
 No production funds are involved. The MVP is designed for testnet demonstration only.

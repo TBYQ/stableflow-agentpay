@@ -33,18 +33,21 @@ Target dates:
 
 Deliverables:
 
-- Go API project
+- Go API project using DDD-style packages
 - Service request endpoint
 - Payment intent endpoint
-- In-memory or SQLite persistence
+- In-memory persistence adapter
 - Ledger model
 - Webhook event model
+- Domain unit tests
+- Application service unit tests
 
 Exit criteria:
 
 - Local API can create a service request
 - Local API can create and fetch a payment intent
 - Local API can create a ledger entry after a mock confirmation
+- Tests cover the main payment status transition and confirmation use case
 
 ## Phase 3: Flare Coston2 Integration
 

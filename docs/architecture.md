@@ -6,6 +6,14 @@ StableFlow AgentPay is a backend-first payment infrastructure prototype for AI a
 
 The system uses a simple EVM contract for on-chain payment confirmation and a Go backend for the infrastructure logic around payment state, ledger reconciliation, webhook delivery, and AI summaries.
 
+The Go backend follows a lightweight DDD and Clean Architecture style inspired by the ThreeDotsLabs Wild Workouts example:
+
+- Domain code owns payment behavior and invariants.
+- Application code orchestrates use cases.
+- Ports describe dependencies needed by use cases.
+- Adapters implement storage, webhook delivery, summaries, and HTTP.
+- Framework and infrastructure details do not leak into the domain model.
+
 ## System Flow
 
 ```text
@@ -44,7 +52,32 @@ AI Payment Summary
 
 ## Components
 
-### Go API Service
+### Domain Layer
+
+Package:
+
+```text
+internal/payment/domain
+```
+
+Responsibilities:
+
+- Service request model
+- Payment intent model
+- Ledger entry model
+- Webhook event model
+- Payment status transitions
+- Domain validation
+
+This layer should not import HTTP, SQL, Flare SDKs, or AI clients.
+
+### Application Layer
+
+Package:
+
+```text
+internal/payment/application
+```
 
 Responsibilities:
 
@@ -54,6 +87,61 @@ Responsibilities:
 - Store ledger entries
 - Trigger webhook delivery
 - Provide AI-generated summaries
+
+The application layer depends on interfaces instead of concrete storage or external clients.
+
+### Ports
+
+Defined in:
+
+```text
+internal/payment/application
+```
+
+Expected ports:
+
+- Service request repository
+- Payment intent repository
+- Ledger repository
+- Webhook event repository
+- Webhook sender
+- Payment summary generator
+- Clock
+- ID generator
+
+### Adapters
+
+Packages:
+
+```text
+internal/payment/adapters/memory
+internal/payment/adapters/webhook
+internal/payment/adapters/summary
+internal/payment/ports/httpapi
+```
+
+Responsibilities:
+
+- In-memory persistence for the first MVP
+- Signed webhook delivery or local webhook simulation
+- Template-based summary generation
+- HTTP JSON API
+
+### Future Chain Adapter
+
+Future package:
+
+```text
+internal/payment/adapters/chain/flare
+```
+
+Responsibilities:
+
+- Connect to Flare Coston2 RPC
+- Read PaymentRecorded events
+- Convert on-chain events into application commands
+
+The first backend milestone can accept a submitted transaction hash through the API. Flare event listening can be added after the core domain flow is stable.
 
 ### Solidity Payment Contract
 
