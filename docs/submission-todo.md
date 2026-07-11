@@ -10,6 +10,8 @@ Target hackathon: Flare Summer Signal
 Public deadline seen on DoraHacks: 2026-08-14
 ```
 
+中文注释：这份日期是写文档时的规划快照。真正提交前，请以 DoraHacks 页面当天显示的截止时间和表单要求为准。
+
 ## 1. Platform Accounts
 
 ### GitHub
@@ -25,6 +27,8 @@ Current target:
 - Keep the repository public.
 - Keep README and docs aligned with the actual implementation.
 - Never commit private keys, seed phrases, `.env`, API keys, or wallet secrets.
+
+中文注释：GitHub 仓库是评委最先看的技术材料。README 要能解释项目价值，docs 要能证明你知道架构、API、demo 和提交路径。
 
 Before submission, GitHub should show:
 
@@ -75,11 +79,15 @@ Recommended project name:
 StableFlow AgentPay
 ```
 
+中文注释：DoraHacks 上的项目名建议保持和 GitHub/README 一致，减少评委对不上材料的风险。
+
 Recommended short description:
 
 ```text
 StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare. It turns a Coston2 payment into a complete payment operations flow with payment intents, receipt verification, ledger reconciliation, signed webhooks, and payment summaries.
 ```
+
+中文注释：这段可以直接作为提交表单的短描述。中文理解是：项目把 Coston2 付款变成完整的后端支付流程，而不是只做转账。
 
 ### Flare Developer Resources
 
@@ -96,6 +104,8 @@ Native test token: C2FLR
 ```
 
 Flare official faucet currently allows requesting Coston2 test assets such as C2FLR. Use a new test wallet only.
+
+中文注释：测试钱包只用于测试网，不要拿真实资产钱包来部署或录 demo。
 
 ### MetaMask
 
@@ -116,6 +126,8 @@ Chain ID: 114
 Currency symbol: C2FLR
 Explorer: https://coston2-explorer.flare.network
 ```
+
+中文注释：如果 MetaMask 没有自动添加网络，就按这里手动填。chain id 必须是 114。
 
 ### Webhook.site
 
@@ -138,6 +150,8 @@ STABLEFLOW_WEBHOOK_DELIVERY=http
 STABLEFLOW_WEBHOOK_SECRET=your-demo-secret
 ```
 
+中文注释：`webhook.site` 是录 demo 很好用的可视化工具。后端发出 webhook 后，可以在网页上直接看到 payload 和签名 header。
+
 ### Demo Video Platform
 
 Use one of:
@@ -153,6 +167,8 @@ YouTube unlisted
 ```
 
 The DoraHacks submission should receive a stable public URL.
+
+中文注释：视频链接要保证评委能打开。不要使用需要登录或容易过期的临时链接。
 
 ## 2. Implementation Completion Checklist
 
@@ -186,6 +202,8 @@ The DoraHacks submission should receive a stable public URL.
    - Webhook.site payload screenshot or screen recording
 9. Record final demo video.
 10. Submit BUIDL on DoraHacks.
+
+中文注释：这 10 步是最终提交前的主线。优先级最高的是合约地址、真实交易哈希、explorer 链接和 demo 视频。
 
 ## 3. Deployment / Demo Paths
 
@@ -228,6 +246,8 @@ This proves:
 - Contract compiles and tests
 
 It does not prove a real Flare transaction unless the contract is deployed to Coston2.
+
+中文注释：Minimum Local Demo 可以证明代码能跑，但不能证明真实链上付款。最终参赛最好还是走 Preferred Hackathon Demo。
 
 ### Preferred Hackathon Demo
 
@@ -283,6 +303,8 @@ Show webhook.site payload
 Show paid status and summary
 ```
 
+中文注释：这是最终录制推荐流程。录屏时尽量让 MetaMask、前端状态、后端结果、Coston2 explorer 和 webhook.site 都出现。
+
 ### Optional Hosted Demo
 
 If time allows:
@@ -300,6 +322,8 @@ Backend:
 
 For the hackathon, hosted deployment is nice but not mandatory if the demo video clearly shows the local flow and the Flare transaction/explorer link.
 
+中文注释：部署线上前端/后端是加分项，不是必须项。时间紧时，清晰的本地录屏 + 真实 Coston2 交易更重要。
+
 ## 4. Quality Bar
 
 ### Minimum Acceptable
@@ -312,6 +336,8 @@ For the hackathon, hosted deployment is nice but not mandatory if the demo video
 - Demo video shows end-to-end local flow
 - DoraHacks form filled completely
 
+中文注释：这是最低交付线。至少要让评委能看懂项目、跑测试、看到 demo。
+
 ### Strong Submission
 
 - Contract deployed to Flare Coston2
@@ -320,6 +346,8 @@ For the hackathon, hosted deployment is nice but not mandatory if the demo video
 - Webhook.site receives signed `payment.paid`
 - Demo video shows explorer link
 - README includes contract address and example tx hash
+
+中文注释：强提交的关键是“真实 Coston2 交易 + 后端收据验证”。这比做更多 UI 更有说服力。
 
 ### Excellent Submission
 
@@ -377,6 +405,8 @@ Roadmap:
 Next steps include persistent storage, hosted demo deployment, background event indexing, richer merchant dashboard, real AI summary adapter, webhook retry queue, and Flare-native data integrations such as FTSO or FDC where useful.
 ```
 
+中文注释：这份 submission draft 可以直接复制到表单里，再把 TBD 替换成真实合约地址、交易哈希和 demo 视频链接。
+
 ## 6. Final Personal Checklist
 
 Before clicking submit:
@@ -394,3 +424,5 @@ Before clicking submit:
 - [ ] DoraHacks form has demo video link
 - [ ] DoraHacks form explains how Flare is used
 - [ ] No secrets committed
+
+中文注释：最后一项非常重要。提交前用 `git status` 和 `.gitignore` 再确认一次，不要把 `.env`、私钥或助记词带进 commit。

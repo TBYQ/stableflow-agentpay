@@ -8,11 +8,34 @@ Default local base URL:
 http://127.0.0.1:8080
 ```
 
+## 中文速查
+
+本 API 的主流程是：
+
+```text
+创建服务请求 -> 创建支付意图 -> 用户付款 -> 后端确认交易 -> 查看账本/webhook/summary
+```
+
+接口用途对照：
+
+```text
+POST /v1/service-requests                    创建一个“要购买的服务请求”
+POST /v1/payment-intents                     创建一张“待付款单”
+GET  /v1/payment-intents/{id}                查看付款单状态
+POST /v1/payment-intents/{id}/transaction    本地演示确认，不查链上收据
+POST /v1/payment-intents/{id}/chain-transaction  真实查 Flare Coston2 收据后确认
+POST /v1/payment-intents/{id}/summary        生成付款摘要
+GET  /v1/ledger                              查看入账记录
+GET  /v1/webhook-events                      查看 webhook 事件记录
+```
+
 ## Create Service Request
 
 ```text
 POST /v1/service-requests
 ```
+
+中文注释：第一步先创建服务请求。它表示“用户或 AI Agent 想买什么服务”，例如付费报告、API 调用权限或数据访问。
 
 Request:
 
@@ -40,6 +63,8 @@ Response:
 ```text
 POST /v1/payment-intents
 ```
+
+中文注释：第二步创建支付意图。Payment Intent 是真正等待付款的对象，它会绑定服务请求、金额、链 ID、合约地址和 webhook 地址。
 
 Request:
 
@@ -78,6 +103,8 @@ Response:
 GET /v1/payment-intents/{id}
 ```
 
+中文注释：用这个接口查看当前支付状态。常见状态是 `pending_payment` 和 `paid`。
+
 Response:
 
 ```json
@@ -103,6 +130,8 @@ POST /v1/payment-intents/{id}/transaction
 ```
 
 This endpoint trusts the submitted tx hash and is useful for early local demos.
+
+中文注释：这个接口不会去链上验证交易，只相信你提交的 tx hash。适合在没有部署合约、没有 C2FLR 测试币、只想演示后端流程时使用。
 
 Request:
 
@@ -150,6 +179,8 @@ This endpoint verifies the transaction receipt through Flare Coston2 JSON-RPC an
 
 The backend confirms the payment only if the event `paymentIntentId` matches the requested backend payment intent id.
 
+中文注释：这是最终 demo 更推荐使用的接口。它会查 Flare Coston2 的交易收据，解析合约事件，并确认事件里的 paymentIntentId 确实等于后端这张 payment intent 的 id。
+
 Request:
 
 ```json
@@ -166,6 +197,8 @@ Response shape is the same as `/transaction`.
 POST /v1/payment-intents/{id}/summary
 ```
 
+中文注释：生成一段人类可读的付款摘要。当前实现是模板生成，不依赖真实 AI API。
+
 Response:
 
 ```json
@@ -180,6 +213,8 @@ Response:
 ```text
 GET /v1/ledger
 ```
+
+中文注释：查看账本记录。支付确认后会生成一条 `payment_confirmed` 类型的 ledger entry。
 
 Response:
 
@@ -206,6 +241,8 @@ Response:
 GET /v1/webhook-events
 ```
 
+中文注释：查看 webhook 事件记录。即使本地模式不真正发送 HTTP，也会记录签名后的 webhook 事件。
+
 Response:
 
 ```json
@@ -228,6 +265,8 @@ Response:
 ## Webhook Payload
 
 When `STABLEFLOW_WEBHOOK_DELIVERY=http`, the backend sends:
+
+中文注释：当后端环境变量设置为 `STABLEFLOW_WEBHOOK_DELIVERY=http` 时，系统会把 `payment.paid` 事件 POST 到 payment intent 里的 `webhook_url`，比如 webhook.site。
 
 ```json
 {
@@ -254,6 +293,8 @@ StableFlow-Event-ID: evt_001
 StableFlow-Signature: t=timestamp,v1=hmac_signature
 ```
 
+中文注释：`StableFlow-Signature` 是 HMAC 签名。真实业务系统收到 webhook 后，可以用共享 secret 验证这个请求是不是 StableFlow 发来的。
+
 ## Error Shape
 
 Errors are returned as:
@@ -272,3 +313,5 @@ Common status codes:
 409 -> invalid payment status transition
 500 -> unexpected server error
 ```
+
+中文注释：如果接口报错，先看 HTTP 状态码。`400` 多半是请求字段不对，`404` 是 id 找不到，`409` 是状态不允许，比如已经 paid 后又用另一个 tx hash 确认。
