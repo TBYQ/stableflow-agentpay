@@ -298,6 +298,23 @@ web: npm run build
 browser: frontend opened and Create Intent successfully called the Go API
 ```
 
+## Coston2 Demo Evidence
+
+The current Coston2 deployment and demo transaction are:
+
+```text
+StableFlowPayment contract:
+0x09982Cfd1c566f749559c495A1a21843939C9E4b
+
+Example paid transaction:
+0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+
+Coston2 explorer:
+https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+```
+
+This demo transaction was confirmed through `/v1/payment-intents/{id}/chain-transaction`. The backend parsed the Coston2 receipt, found the `PaymentRecorded` event, marked payment intent `pi_001` as `paid`, created ledger entry `le_001`, recorded webhook event `evt_001`, and generated a payment summary.
+
 ## Documentation
 
 - [Product Requirements](docs/product-requirements.md)

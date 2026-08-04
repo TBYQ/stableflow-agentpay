@@ -92,9 +92,51 @@ browser opened the web UI and Create Intent successfully called the Go API
 
 中文注释：这些是之前本地通过的验证项。每次重要改动后建议至少重新跑 `go test ./...`、`contracts npm test` 和 `web npm run build`。
 
+Latest Coston2 verification completed:
+
+```text
+StableFlowPayment contract:
+0x09982Cfd1c566f749559c495A1a21843939C9E4b
+
+Example paid transaction:
+0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+
+Coston2 explorer:
+https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+
+Backend result:
+payment intent pi_001 -> paid
+ledger entry le_001 created
+webhook event evt_001 recorded in local mode
+```
+
 ## Remaining Before Submission
 
+### Record Final Demo Video
+
+Needs:
+
+- A clear 2-3 minute recording
+- Contract address on screen or in the submission notes
+- Example transaction opened in Coston2 Explorer
+- Backend `paid` status, ledger entry, webhook event, and payment summary shown
+
+### Optional HTTP Webhook Demo
+
+Needs:
+
+- Real webhook.site URL
+- Backend started with `STABLEFLOW_WEBHOOK_DELIVERY=http`
+- Frontend payment intent using the real webhook.site URL
+- webhook.site payload visible in the recording
+
 ### Deploy Contract To Coston2
+
+Status:
+
+```text
+Completed
+```
 
 Needs:
 
@@ -115,6 +157,12 @@ Output to capture:
 
 ```text
 StableFlowPayment deployed to: 0x...
+```
+
+Captured output:
+
+```text
+StableFlowPayment deployed to: 0x09982Cfd1c566f749559c495A1a21843939C9E4b
 ```
 
 ### Wire Contract Address
@@ -157,8 +205,8 @@ Submission assets:
 - Short description
 - Target users
 - How the project uses Flare
-- Contract address
-- Example transaction hash
+- Contract address: `0x09982Cfd1c566f749559c495A1a21843939C9E4b`
+- Example transaction hash: `0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0`
 - Short roadmap
 
 中文注释：DoraHacks 提交材料里最容易缺的是合约地址、示例交易哈希和 demo 视频链接。录制前先准备好这些信息。

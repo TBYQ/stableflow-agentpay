@@ -5,7 +5,7 @@ This document is the practical checklist for turning StableFlow AgentPay into a 
 Current date context:
 
 ```text
-Today: 2026-07-05
+Today: 2026-08-04
 Target hackathon: Flare Summer Signal
 Public deadline seen on DoraHacks: 2026-08-14
 ```
@@ -188,22 +188,25 @@ The DoraHacks submission should receive a stable public URL.
 
 ### Still Needed For A Real Submission
 
-1. Deploy `StableFlowPayment` to Flare Coston2.
-2. Save the deployed contract address.
-3. Configure backend with the contract address.
-4. Configure frontend with the contract address.
-5. Get C2FLR test tokens.
-6. Execute one real payment through MetaMask.
-7. Confirm backend through `/chain-transaction`.
-8. Capture:
-   - Contract address
-   - Example tx hash
-   - Coston2 explorer link
-   - Webhook.site payload screenshot or screen recording
-9. Record final demo video.
-10. Submit BUIDL on DoraHacks.
+1. Record final demo video.
+2. Replace the placeholder webhook URL with a real webhook.site URL if the final video should show an external webhook delivery.
+3. Capture webhook.site payload screenshot or screen recording if using HTTP webhook delivery.
+4. Submit BUIDL on DoraHacks.
 
-中文注释：这 10 步是最终提交前的主线。优先级最高的是合约地址、真实交易哈希、explorer 链接和 demo 视频。
+中文注释：这几步是最终提交前的剩余主线。合约地址、真实交易哈希和 explorer 链接已经拿到，接下来最重要的是 demo 视频和 webhook 展示。
+
+Completed Coston2 evidence:
+
+```text
+StableFlowPayment contract:
+0x09982Cfd1c566f749559c495A1a21843939C9E4b
+
+Example paid transaction:
+0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+
+Coston2 explorer:
+https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+```
 
 ## 3. Deployment / Demo Paths
 
@@ -394,8 +397,9 @@ Technical materials:
 
 ```text
 GitHub: https://github.com/TBYQ/stableflow-agentpay
-Contract address: TBD
-Example transaction hash: TBD
+Contract address: 0x09982Cfd1c566f749559c495A1a21843939C9E4b
+Example transaction hash: 0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
+Explorer link: https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
 Demo video: TBD
 ```
 
@@ -405,19 +409,19 @@ Roadmap:
 Next steps include persistent storage, hosted demo deployment, background event indexing, richer merchant dashboard, real AI summary adapter, webhook retry queue, and Flare-native data integrations such as FTSO or FDC where useful.
 ```
 
-中文注释：这份 submission draft 可以直接复制到表单里，再把 TBD 替换成真实合约地址、交易哈希和 demo 视频链接。
+中文注释：这份 submission draft 可以直接复制到表单里。合约地址、交易哈希和 explorer 链接已经补好，录完视频后只需要把 `Demo video: TBD` 替换成真实视频链接。
 
 ## 6. Final Personal Checklist
 
 Before clicking submit:
 
 - [ ] GitHub repo is public
-- [ ] README is updated
-- [ ] Tests pass locally
-- [ ] Coston2 contract deployed
-- [ ] Contract address saved
-- [ ] Example tx hash saved
-- [ ] Explorer link works
+- [x] README is updated
+- [x] Tests pass locally
+- [x] Coston2 contract deployed
+- [x] Contract address saved
+- [x] Example tx hash saved
+- [x] Explorer link works
 - [ ] Demo video uploaded
 - [ ] Webhook demo visible
 - [ ] DoraHacks form has GitHub link
