@@ -41,7 +41,7 @@ func main() {
 		ChainVerifier:   chainVerifier,
 		Summary:         summary.TemplateGenerator{},
 		Clock:           application.SystemClock{},
-		IDs:             application.NewSequentialIDGenerator(),
+		IDs:             application.NewULIDGenerator(),
 	})
 
 	addr := envOrDefault("STABLEFLOW_HTTP_ADDR", ":8080")

@@ -6,7 +6,7 @@ StableFlow AgentPay
 
 ## One-line Pitch
 
-AI-agent-ready payment infrastructure on Flare with payment intents, on-chain confirmation, ledger reconciliation, and signed webhooks.
+Payment intent and webhook infrastructure on Flare for paid APIs, SaaS services, and AI agents.
 
 中文注释：这句话是对外介绍用的“电梯 pitch”。中文意思是：StableFlow AgentPay 是面向 AI Agent 的 Flare 支付基础设施，能创建支付意图、验证链上交易、记账，并发送带签名的 webhook。
 
@@ -53,7 +53,7 @@ A wallet transfer alone does not provide enough infrastructure for a real servic
 - Whether a webhook was delivered
 - What happened in plain language
 
-StableFlow AgentPay fills this gap.
+StableFlow AgentPay fills this gap. AI agents are one possible user group, but the hackathon positioning is broader: a Flare payment operations layer for paid digital services.
 
 中文注释：痛点不是“怎么转账”，而是“业务系统怎么知道这笔转账能对应到某个服务请求，并且安全地解锁服务”。这就是 payment intent、ledger、webhook 存在的原因。
 

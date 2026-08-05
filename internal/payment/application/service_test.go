@@ -3,6 +3,8 @@ package application_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +24,19 @@ func (c fixedClock) Now() time.Time {
 	return c.now
 }
 
+type deterministicIDGenerator struct {
+	counters map[string]int
+}
+
+func newDeterministicIDGenerator() *deterministicIDGenerator {
+	return &deterministicIDGenerator{counters: map[string]int{}}
+}
+
+func (g *deterministicIDGenerator) NewID(prefix string) string {
+	g.counters[prefix]++
+	return fmt.Sprintf("%s_%03d", prefix, g.counters[prefix])
+}
+
 func newTestService() (*application.Service, *memory.Store) {
 	store := memory.NewStore()
 	return newTestServiceWithStore(store, nil), store
@@ -39,7 +54,7 @@ func newTestServiceWithStore(store *memory.Store, verifier application.ChainPaym
 		Clock: fixedClock{
 			now: time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC),
 		},
-		IDs: application.NewSequentialIDGenerator(),
+		IDs: newDeterministicIDGenerator(),
 	})
 	return service
 }
@@ -121,6 +136,23 @@ func TestCreatePaymentIntentRequiresExistingServiceRequest(t *testing.T) {
 	})
 	if !errors.Is(err, application.ErrNotFound) {
 		t.Fatalf("expected not found error, got %v", err)
+	}
+}
+
+func TestULIDGeneratorCreatesPrefixedNonSequentialIDs(t *testing.T) {
+	ids := application.NewULIDGenerator()
+	pattern := regexp.MustCompile(`^pi_[0-9A-HJKMNP-TV-Z]{26}$`)
+
+	first := ids.NewID("pi")
+	second := ids.NewID("pi")
+	if !pattern.MatchString(first) {
+		t.Fatalf("expected prefixed ULID, got %s", first)
+	}
+	if !pattern.MatchString(second) {
+		t.Fatalf("expected prefixed ULID, got %s", second)
+	}
+	if first == second {
+		t.Fatalf("expected unique ids, got duplicate %s", first)
 	}
 }
 

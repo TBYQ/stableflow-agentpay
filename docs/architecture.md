@@ -2,7 +2,7 @@
 
 ## Overview
 
-StableFlow AgentPay is a backend-first payment infrastructure prototype for AI agents and paid services on Flare.
+StableFlow AgentPay is a backend-first payment infrastructure prototype for paid APIs, SaaS services, AI agents, and other digital services on Flare.
 
 The system is intentionally split into three parts:
 
@@ -269,6 +269,8 @@ created_at
 updated_at
 ```
 
+Implementation note: ids use a type prefix plus ULID-style value, for example `pi_01K...`, instead of restart-prone sequential ids.
+
 ### LedgerEntry
 
 ```text
@@ -305,5 +307,5 @@ The judging story:
 
 ```text
 This is not only a wallet transfer.
-This is a payment operations layer for AI agents and paid services.
+This is a payment operations layer for paid APIs, SaaS services, AI agents, and other digital services.
 ```

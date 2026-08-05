@@ -4,9 +4,9 @@ Target length: 2 to 3 minutes.
 
 ## 1. Opening
 
-StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare.
+StableFlow AgentPay is payment intent and webhook infrastructure on Flare for paid APIs, SaaS services, and AI agents.
 
-It helps AI agents and paid services use payment intents, Flare Coston2 transaction confirmation, ledger reconciliation, signed webhooks, and payment summaries.
+It helps paid APIs, SaaS services, AI agents, and independent service providers use payment intents, Flare Coston2 transaction confirmation, ledger reconciliation, signed webhooks, and payment summaries.
 
 中文讲法：
 
@@ -153,7 +153,7 @@ Point to:
 
 ## 5. Closing
 
-StableFlow AgentPay turns a simple on-chain payment into a payment operations layer for AI agents and paid services.
+StableFlow AgentPay turns a simple on-chain payment into a payment operations layer for paid APIs, SaaS services, AI agents, and other digital services.
 
 The MVP demonstrates:
 

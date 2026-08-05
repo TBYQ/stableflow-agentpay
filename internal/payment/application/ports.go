@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/domain"
@@ -99,19 +101,59 @@ type IDGenerator interface {
 	NewID(prefix string) string
 }
 
-type SequentialIDGenerator struct {
-	mu       sync.Mutex
-	counters map[string]int
+type ULIDGenerator struct{}
+
+var fallbackEntropyCounter uint64
+
+func NewULIDGenerator() *ULIDGenerator {
+	return &ULIDGenerator{}
 }
 
-func NewSequentialIDGenerator() *SequentialIDGenerator {
-	return &SequentialIDGenerator{counters: map[string]int{}}
+func (g *ULIDGenerator) NewID(prefix string) string {
+	return fmt.Sprintf("%s_%s", prefix, newULID(time.Now().UTC(), prefix))
 }
 
-func (g *SequentialIDGenerator) NewID(prefix string) string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func newULID(now time.Time, prefix string) string {
+	var id [16]byte
+	millis := uint64(now.UnixMilli())
+	id[0] = byte(millis >> 40)
+	id[1] = byte(millis >> 32)
+	id[2] = byte(millis >> 24)
+	id[3] = byte(millis >> 16)
+	id[4] = byte(millis >> 8)
+	id[5] = byte(millis)
 
-	g.counters[prefix]++
-	return fmt.Sprintf("%s_%03d", prefix, g.counters[prefix])
+	if _, err := rand.Read(id[6:]); err != nil {
+		counter := atomic.AddUint64(&fallbackEntropyCounter, 1)
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d", prefix, now.UnixNano(), counter)))
+		copy(id[6:], digest[:10])
+	}
+
+	return encodeCrockfordBase32(id)
+}
+
+func encodeCrockfordBase32(id [16]byte) string {
+	const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+	var out [26]byte
+	var acc uint64
+	bits := 2 // ULID uses 130 encoded bits: two leading zero bits plus 128 data bits.
+	idx := 0
+	for _, b := range id {
+		acc = (acc << 8) | uint64(b)
+		bits += 8
+		for bits >= 5 {
+			shift := bits - 5
+			out[idx] = alphabet[(acc>>shift)&31]
+			idx++
+			if shift == 0 {
+				acc = 0
+			} else {
+				acc &= (uint64(1) << shift) - 1
+			}
+			bits = shift
+		}
+	}
+
+	return string(out[:])
 }

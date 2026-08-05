@@ -29,6 +29,8 @@ GET  /v1/ledger                              查看入账记录
 GET  /v1/webhook-events                      查看 webhook 事件记录
 ```
 
+Note: the JSON examples below use short readable ids such as `pi_001`. The implementation now generates production-friendlier prefixed ULID ids such as `pi_01K...` to avoid collisions across restarts and repeated Coston2 demos.
+
 ## Create Service Request
 
 ```text

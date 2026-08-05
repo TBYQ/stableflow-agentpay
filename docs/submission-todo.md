@@ -84,7 +84,7 @@ StableFlow AgentPay
 Recommended short description:
 
 ```text
-StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare. It turns a Coston2 payment into a complete payment operations flow with payment intents, receipt verification, ledger reconciliation, signed webhooks, and payment summaries.
+StableFlow AgentPay is payment intent and webhook infrastructure on Flare for paid APIs, SaaS services, and AI agents. It turns a Coston2 payment into a complete payment operations flow with payment intents, receipt verification, ledger reconciliation, signed webhooks, and payment summaries.
 ```
 
 中文注释：这段可以直接作为提交表单的短描述。中文理解是：项目把 Coston2 付款变成完整的后端支付流程，而不是只做转账。
@@ -378,13 +378,13 @@ Interoperable Asset Products
 Short product description:
 
 ```text
-StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare. It connects backend payment intents with Coston2 transaction verification, ledger reconciliation, signed webhooks, and payment summaries so AI agents and paid services can safely unlock digital access after on-chain payment confirmation.
+StableFlow AgentPay is payment intent and webhook infrastructure on Flare for paid APIs, SaaS services, and AI agents. It connects backend payment intents with Coston2 transaction verification, ledger reconciliation, signed webhooks, and payment summaries so paid services can safely unlock digital access after on-chain payment confirmation.
 ```
 
 Target user:
 
 ```text
-AI agent builders, SaaS API providers, and independent digital service providers that need a reliable on-chain payment confirmation and service unlock workflow.
+SaaS API providers, independent digital service providers, merchant-style Flare builders, and AI agent builders that need a reliable on-chain payment confirmation and service unlock workflow.
 ```
 
 How it uses Flare:

@@ -1,6 +1,6 @@
 # StableFlow AgentPay
 
-StableFlow AgentPay is AI-agent-ready payment infrastructure on Flare.
+StableFlow AgentPay is payment intent and webhook infrastructure on Flare for paid APIs, SaaS services, and AI agents.
 
 It turns a raw on-chain payment into a complete payment operations flow:
 
@@ -25,7 +25,7 @@ StableFlow AgentPay 可以理解成“给 AI Agent 和付费数字服务用的�
 - `docs/submission-todo.md`: 参赛提交前还缺什么
 - `docs/api.md`: 后端接口怎么调用
 
-The project is built for **Flare Summer Signal** and is positioned for the **Interoperable Asset Products** bounty. The target use case is simple: AI agents, SaaS APIs, and independent service providers need a reliable way to unlock paid digital services after an on-chain payment is confirmed.
+The project is built for **Flare Summer Signal** and is positioned for the **Interoperable Asset Products** bounty. The target use case is simple: paid APIs, SaaS services, AI agents, and independent service providers need a reliable way to unlock digital access after an on-chain payment is confirmed.
 
 ## Why This Exists
 
@@ -89,6 +89,7 @@ This repository already includes a working first implementation of the core hack
 Implemented:
 
 - DDD-oriented Go backend
+- Prefix-based ULID identifiers for service requests, payment intents, ledger entries, and webhook events
 - Payment intent domain model and status transition rules
 - Service request, ledger entry, and webhook event models
 - HTTP JSON API
@@ -318,6 +319,7 @@ This demo transaction was confirmed through `/v1/payment-intents/{id}/chain-tran
 ## Documentation
 
 - [Product Requirements](docs/product-requirements.md)
+- [Hackathon Positioning](docs/hackathon-positioning.md)
 - [Architecture](docs/architecture.md)
 - [API](docs/api.md)
 - [Demo Script](docs/demo-script.md)
@@ -326,7 +328,7 @@ This demo transaction was confirmed through `/v1/payment-intents/{id}/chain-tran
 
 ## Hackathon Submission Story
 
-StableFlow AgentPay is not only a payment button. It is a payment operations layer for AI agents and paid services.
+StableFlow AgentPay is not only a payment button. It is a payment operations layer for paid APIs, SaaS services, AI agents, and other digital services.
 
 中文注释：对评委讲的时候，不要只说“我做了一个付款按钮”。更强的表达是：这个项目把链上付款变成了后端业务可用的支付流程，包含状态机、账本、webhook、收据验证和摘要。
 
