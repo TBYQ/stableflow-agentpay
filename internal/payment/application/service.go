@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/domain"
 )
@@ -16,6 +17,7 @@ type Dependencies struct {
 	WebhookSender   WebhookSender
 	ChainVerifier   ChainPaymentVerifier
 	Summary         SummaryGenerator
+	Quote           QuoteProvider
 	Clock           Clock
 	IDs             IDGenerator
 }
@@ -28,6 +30,7 @@ type Service struct {
 	webhookSender   WebhookSender
 	chainVerifier   ChainPaymentVerifier
 	summary         SummaryGenerator
+	quote           QuoteProvider
 	clock           Clock
 	ids             IDGenerator
 }
@@ -41,6 +44,7 @@ func NewService(deps Dependencies) *Service {
 		webhookSender:   deps.WebhookSender,
 		chainVerifier:   deps.ChainVerifier,
 		summary:         deps.Summary,
+		quote:           deps.Quote,
 		clock:           deps.Clock,
 		ids:             deps.IDs,
 	}
@@ -97,6 +101,10 @@ func (s *Service) CreatePaymentIntent(ctx context.Context, cmd CreatePaymentInte
 
 func (s *Service) GetPaymentIntent(ctx context.Context, id string) (*domain.PaymentIntent, error) {
 	return s.paymentIntents.GetPaymentIntent(ctx, id)
+}
+
+func (s *Service) ListPaymentIntents(ctx context.Context) ([]domain.PaymentIntent, error) {
+	return s.paymentIntents.ListPaymentIntents(ctx)
 }
 
 type ConfirmPaymentCommand struct {
@@ -226,6 +234,73 @@ func (s *Service) ListWebhookEvents(ctx context.Context) ([]domain.WebhookEvent,
 	return s.webhookEvents.ListWebhookEvents(ctx)
 }
 
+func (s *Service) QuotePayment(ctx context.Context, request QuoteRequest) (*PaymentQuote, error) {
+	if s.quote == nil {
+		return nil, fmt.Errorf("%w: quote provider is not configured", domain.ErrValidation)
+	}
+	return s.quote.QuotePayment(ctx, request)
+}
+
+type SeedDemoDataCommand struct {
+	ServiceID       string
+	Description     string
+	USDAmount       string
+	Amount          string
+	Asset           string
+	ChainID         int64
+	PaymentContract string
+	WebhookURL      string
+	TxHash          string
+}
+
+func (s *Service) SeedDemoData(ctx context.Context, cmd SeedDemoDataCommand) (*ConfirmPaymentResult, error) {
+	serviceID := firstNonEmpty(cmd.ServiceID, "premium-market-report")
+	description := firstNonEmpty(cmd.Description, "Paid market report access for a merchant checkout demo")
+	asset := firstNonEmpty(cmd.Asset, "C2FLR")
+	amount := strings.TrimSpace(cmd.Amount)
+	if amount == "" && strings.TrimSpace(cmd.USDAmount) != "" {
+		quote, err := s.QuotePayment(ctx, QuoteRequest{
+			USDAmount: cmd.USDAmount,
+			Asset:     asset,
+		})
+		if err != nil {
+			return nil, err
+		}
+		amount = quote.Amount
+	}
+	amount = firstNonEmpty(amount, "0.001")
+	chainID := cmd.ChainID
+	if chainID == 0 {
+		chainID = 114
+	}
+	txHash := firstNonEmpty(cmd.TxHash, "0xseed000000000000000000000000000000000000000000000000000000000001")
+
+	request, err := s.CreateServiceRequest(ctx, CreateServiceRequestCommand{
+		ServiceID:   serviceID,
+		Description: description,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	intent, err := s.CreatePaymentIntent(ctx, CreatePaymentIntentCommand{
+		ServiceRequestID: request.ID,
+		Amount:           amount,
+		Asset:            asset,
+		ChainID:          chainID,
+		PaymentContract:  cmd.PaymentContract,
+		WebhookURL:       cmd.WebhookURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ConfirmPayment(ctx, ConfirmPaymentCommand{
+		PaymentIntentID: intent.ID,
+		TxHash:          txHash,
+	})
+}
+
 func (s *Service) GeneratePaymentSummary(ctx context.Context, paymentIntentID string) (string, error) {
 	intent, err := s.paymentIntents.GetPaymentIntent(ctx, paymentIntentID)
 	if err != nil {
@@ -244,4 +319,12 @@ func (s *Service) GeneratePaymentSummary(ctx context.Context, paymentIntentID st
 		PaymentIntent: *intent,
 		LedgerEntry:   ledgerEntry,
 	})
+}
+
+func firstNonEmpty(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
 }

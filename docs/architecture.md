@@ -9,7 +9,7 @@ The system is intentionally split into three parts:
 ```text
 Go backend        -> payment operations and business workflow
 Solidity contract -> minimal on-chain payment recording
-React UI          -> hackathon demo and MetaMask interaction
+React UI          -> merchant console and MetaMask interaction
 ```
 
 The product value is in the full payment workflow, not in a complex smart contract.
@@ -35,7 +35,10 @@ Domain code does not import HTTP, SQL, Flare RPC, webhook clients, or frontend c
 中文注释：下面是完整业务链路。理解这张图之后，再看包结构会容易很多。
 
 ```text
-AI Agent or Service Client
+Merchant or Service Client
+        |
+        v
+HTTP API: quote C2FLR amount
         |
         v
 HTTP API: create service request
@@ -68,7 +71,7 @@ Ledger entry is created
 Signed webhook event is delivered or recorded
         |
         v
-Payment summary is returned
+Paid service is unlocked and summarized
 ```
 
 ## Backend Packages
@@ -79,8 +82,9 @@ Application entrypoint.
 
 Responsibilities:
 
-- Create in-memory store
+- Create in-memory or JSON file store
 - Configure webhook sender
+- Configure demo quote provider
 - Configure Flare receipt verifier when a contract address is present
 - Start HTTP server
 
@@ -111,6 +115,7 @@ Application layer.
 Responsibilities:
 
 - Create service requests
+- Quote payment amounts
 - Create payment intents
 - Confirm payment from a submitted hash
 - Confirm payment from a verified Flare receipt
@@ -118,7 +123,7 @@ Responsibilities:
 - Send or record webhook events
 - Generate payment summaries
 
-This package defines ports for repositories, webhook sender, chain verifier, summary generator, clock, and ID generator.
+This package defines ports for repositories, webhook sender, chain verifier, quote provider, summary generator, clock, and ID generator.
 
 中文注释：application 层负责“编排流程”。它不关心数据具体存哪里、webhook 怎么发、链上收据怎么查，只通过接口调用这些能力。
 
@@ -129,6 +134,24 @@ In-memory persistence adapter.
 Used for the hackathon MVP so the local demo has no database requirement.
 
 中文注释：这里是临时内存存储。重启后数据会丢，但 demo 简单、依赖少。以后可以换成 SQLite/PostgreSQL。
+
+### `internal/payment/adapters/filejson`
+
+Optional JSON file persistence adapter.
+
+It is enabled with:
+
+```text
+STABLEFLOW_STORE_PATH=data/stableflow.json
+```
+
+This keeps payment intents, ledger entries, and webhook events across local demo restarts without adding a SQL dependency.
+
+### `internal/payment/adapters/quote`
+
+Demo quote adapter.
+
+The current provider returns a static FTSO-style quote for USD-to-C2FLR display. A real FTSO adapter can replace it later without changing domain logic.
 
 ### `internal/payment/adapters/webhook`
 
@@ -208,12 +231,13 @@ web/
 
 Responsibilities:
 
+- Request a demo USD-to-C2FLR quote
 - Create service request through the Go API
 - Create payment intent through the Go API
 - Add or switch MetaMask to Flare Coston2
 - Call `recordPayment` on the deployed contract
 - Send the tx hash back to the backend
-- Display payment intent state and summary
+- Display checkout status, ledger entries, webhook events, and service unlock result
 
 中文注释：前端主要服务 demo，不是完整商户后台。它负责把用户操作串起来，让评委能看到完整付款和确认结果。
 

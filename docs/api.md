@@ -31,6 +31,14 @@ GET  /v1/webhook-events                      查看 webhook 事件记录
 
 Note: the JSON examples below use short readable ids such as `pi_001`. The implementation now generates production-friendlier prefixed ULID ids such as `pi_01K...` to avoid collisions across restarts and repeated Coston2 demos.
 
+Merchant console additions:
+
+```text
+GET  /v1/payment-intents
+GET  /v1/quote?usd_amount=0.01&asset=C2FLR
+POST /v1/demo/seed
+```
+
 ## Create Service Request
 
 ```text
@@ -124,6 +132,78 @@ Response:
   "updated_at": "2026-07-05T10:03:00Z"
 }
 ```
+
+## List Payment Intents
+
+```text
+GET /v1/payment-intents
+```
+
+The merchant console uses this endpoint to show checkout history. Items are returned newest first.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "pi_001",
+      "service_request_id": "sr_001",
+      "amount": "0.001",
+      "asset": "C2FLR",
+      "chain_id": 114,
+      "status": "paid",
+      "tx_hash": "0xabc123"
+    }
+  ]
+}
+```
+
+## Quote Payment
+
+```text
+GET /v1/quote?usd_amount=0.01&asset=C2FLR
+```
+
+This is a demo FTSO-style static quote adapter, not a real FTSO price feed. It keeps the product shape ready for a future real Flare quote adapter.
+
+Response:
+
+```json
+{
+  "usd_amount": "0.01",
+  "asset": "C2FLR",
+  "amount": "0.001",
+  "price_usd": "10",
+  "price_source": "demo-ftso-style-static",
+  "expires_at": "2026-08-06T10:02:00Z"
+}
+```
+
+## Seed Demo Data
+
+```text
+POST /v1/demo/seed
+```
+
+This endpoint creates a service request, payment intent, ledger entry, webhook event, and summary through the local confirmation path. It is for recordings and dashboard demos; it does not replace the real Coston2 receipt verification path.
+
+Request:
+
+```json
+{
+  "service_id": "premium-market-report",
+  "description": "Paid market report access for a merchant checkout demo",
+  "usd_amount": "0.01",
+  "amount": "0.001",
+  "asset": "C2FLR",
+  "chain_id": 114,
+  "payment_contract": "0x0000000000000000000000000000000000000000",
+  "webhook_url": "https://webhook.site/your-demo-url"
+}
+```
+
+Response shape is the same as `/transaction`.
 
 ## Confirm Payment With Submitted Hash
 

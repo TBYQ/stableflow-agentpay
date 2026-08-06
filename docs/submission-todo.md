@@ -180,10 +180,14 @@ The DoraHacks submission should receive a stable public URL.
 - Ledger entry creation
 - Local and HTTP webhook sender
 - Template payment summary
+- Merchant console with payment intent, ledger, webhook, quote, and unlock views
+- Demo JSON persistence adapter
+- Demo seed endpoint
+- FTSO-style static quote adapter
 - Flare Coston2 receipt verifier
 - Solidity `StableFlowPayment` contract
 - Hardhat tests
-- React + Vite + MetaMask demo UI
+- React + Vite + MetaMask merchant UI
 - Local tests and frontend build
 
 ### Still Needed For A Real Submission
@@ -406,7 +410,7 @@ Demo video: TBD
 Roadmap:
 
 ```text
-Next steps include persistent storage, hosted demo deployment, background event indexing, richer merchant dashboard, real AI summary adapter, webhook retry queue, and Flare-native data integrations such as FTSO or FDC where useful.
+Next steps include hosted demo deployment, production SQL storage, background event indexing, real AI summary adapter, webhook retry queue, and Flare-native integrations such as real FTSO quotes, FDC proofs, FXRP, and FAssets settlement where useful.
 ```
 
 中文注释：这份 submission draft 可以直接复制到表单里。合约地址、交易哈希和 explorer 链接已经补好，录完视频后只需要把 `Demo video: TBD` 替换成真实视频链接。

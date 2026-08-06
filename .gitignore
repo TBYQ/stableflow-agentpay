@@ -16,6 +16,10 @@ typechain-types/
 # Local verification logs
 work-*.log
 
+# Local demo persistence
+data/
+*.local.json
+
 # Local editor and OS noise
 .DS_Store
 Thumbs.db

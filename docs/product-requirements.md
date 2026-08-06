@@ -61,15 +61,16 @@ StableFlow AgentPay fills this gap. AI agents are one possible user group, but t
 
 The MVP supports this end-to-end flow:
 
-1. Create a service request for a paid digital service.
-2. Create a payment intent for that service request.
-3. Pay on Flare Coston2 through MetaMask.
-4. Emit `PaymentRecorded` from a Solidity contract.
-5. Verify the transaction receipt from the Go backend.
-6. Mark the payment intent as paid.
-7. Create a ledger entry.
-8. Deliver or locally record a signed webhook event.
-9. Generate a short payment summary.
+1. Quote a payable C2FLR amount for a paid digital service.
+2. Create a service request for that service.
+3. Create a payment intent for that service request.
+4. Pay on Flare Coston2 through MetaMask.
+5. Emit `PaymentRecorded` from a Solidity contract.
+6. Verify the transaction receipt from the Go backend.
+7. Mark the payment intent as paid.
+8. Create a ledger entry.
+9. Deliver or locally record a signed webhook event.
+10. Unlock the paid service and generate a short payment summary.
 
 中文注释：MVP 的范围就是这 9 步。超出这些的功能，比如登录、商户后台、数据库、正式资金托管，都不是当前版本要解决的。
 
@@ -167,6 +168,20 @@ The current implementation uses a template-based summary generator. A real AI AP
 
 中文注释：现在的 summary 是模板生成，不是真的调用 AI。这样 demo 稳定；以后可以把 summary adapter 换成真实 AI 接口。
 
+### Merchant Console
+
+The React UI now behaves like a small merchant payment console instead of a raw form. It shows checkout creation, quote results, wallet payment actions, service unlock state, payment intents, ledger entries, and webhook events.
+
+### Demo Persistence
+
+The backend can keep local demo state in a JSON file by setting:
+
+```text
+STABLEFLOW_STORE_PATH=data/stableflow.json
+```
+
+This is not a production database. It is a low-risk persistence adapter for hackathon demos.
+
 ## Non-goals
 
 The MVP intentionally does not include:
@@ -175,9 +190,10 @@ The MVP intentionally does not include:
 - Custody
 - User login
 - Merchant accounts
-- Production database
+- Production SQL database
 - Complex DeFi strategy
 - Cross-chain settlement
+- Real FTSO/FDC/FAssets settlement
 - Full autonomous agent wallet management
 - Production webhook retry queue
 
@@ -192,7 +208,7 @@ The project is successful for the hackathon if a judge can see:
 - DDD-oriented Go backend
 - Solidity contract with tests
 - Flare Coston2 deployment path
-- MetaMask demo UI
+- MetaMask merchant console
 - Payment intent lifecycle
 - Receipt-based payment confirmation
 - Ledger entry creation

@@ -40,7 +40,7 @@ Point to the repository structure:
 ```text
 Go backend: DDD payment workflow
 Solidity: minimal on-chain payment recording
-React UI: MetaMask demo
+React UI: merchant console and MetaMask demo
 ```
 
 Explain that the smart contract is intentionally small and the backend owns the payment operations workflow.
@@ -55,16 +55,16 @@ Explain that the smart contract is intentionally small and the backend owns the 
 
 ### Step 1: Create payment intent
 
-Open the web UI and click:
+Open the web UI and show the quote, checkout builder, payment intent table, ledger table, and webhook table. Then click:
 
 ```text
-Create Intent
+Create Checkout
 ```
 
 Explain:
 
 ```text
-The backend creates a service request and a payment intent. The payment intent starts as pending_payment.
+The backend quotes a C2FLR amount, creates a service request, and creates a payment intent. The payment intent starts as pending_payment.
 ```
 
 中文讲法：
@@ -158,9 +158,12 @@ StableFlow AgentPay turns a simple on-chain payment into a payment operations la
 The MVP demonstrates:
 
 - Payment intents
+- Demo quote flow
 - Flare Coston2 transaction confirmation
 - Ledger reconciliation
 - Signed webhook delivery
+- Service unlock outcome
+- Merchant console views
 - Clean backend architecture
 
 中文讲法：

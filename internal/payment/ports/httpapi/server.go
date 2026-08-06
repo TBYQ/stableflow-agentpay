@@ -25,6 +25,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/v1/payment-intents/", s.handlePaymentIntentByID)
 	mux.HandleFunc("/v1/ledger", s.handleLedger)
 	mux.HandleFunc("/v1/webhook-events", s.handleWebhookEvents)
+	mux.HandleFunc("/v1/quote", s.handleQuote)
+	mux.HandleFunc("/v1/demo/seed", s.handleDemoSeed)
 	return withCORS(mux)
 }
 
@@ -67,6 +69,16 @@ type createPaymentIntentBody struct {
 }
 
 func (s *Server) handlePaymentIntents(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		intents, err := s.service.ListPaymentIntents(r.Context())
+		if err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": intents})
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -216,6 +228,71 @@ func (s *Server) handleWebhookEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": events})
+}
+
+func (s *Server) handleQuote(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	quote, err := s.service.QuotePayment(r.Context(), application.QuoteRequest{
+		USDAmount: r.URL.Query().Get("usd_amount"),
+		Asset:     r.URL.Query().Get("asset"),
+	})
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, quote)
+}
+
+type seedDemoBody struct {
+	ServiceID       string `json:"service_id"`
+	Description     string `json:"description"`
+	USDAmount       string `json:"usd_amount"`
+	Amount          string `json:"amount"`
+	Asset           string `json:"asset"`
+	ChainID         int64  `json:"chain_id"`
+	PaymentContract string `json:"payment_contract"`
+	WebhookURL      string `json:"webhook_url"`
+	TxHash          string `json:"tx_hash"`
+}
+
+func (s *Server) handleDemoSeed(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var body seedDemoBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	result, err := s.service.SeedDemoData(r.Context(), application.SeedDemoDataCommand{
+		ServiceID:       body.ServiceID,
+		Description:     body.Description,
+		USDAmount:       body.USDAmount,
+		Amount:          body.Amount,
+		Asset:           body.Asset,
+		ChainID:         body.ChainID,
+		PaymentContract: body.PaymentContract,
+		WebhookURL:      body.WebhookURL,
+		TxHash:          body.TxHash,
+	})
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"payment_intent": result.PaymentIntent,
+		"ledger_entry":   result.LedgerEntry,
+		"webhook_event":  result.WebhookEvent,
+		"summary":        result.Summary,
+	})
 }
 
 func writeDomainError(w http.ResponseWriter, err error) {

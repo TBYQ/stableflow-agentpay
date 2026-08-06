@@ -5,7 +5,7 @@ StableFlow AgentPay is payment intent and webhook infrastructure on Flare for pa
 It turns a raw on-chain payment into a complete payment operations flow:
 
 ```text
-Payment Intent -> Flare Coston2 transaction -> receipt verification -> ledger entry -> signed webhook -> payment summary
+Quote -> Payment Intent -> Flare Coston2 transaction -> receipt verification -> ledger entry -> signed webhook -> service unlock
 ```
 
 ## 中文速读
@@ -36,11 +36,13 @@ Wallet transfers are not enough for real paid services.
 A practical payment system also needs:
 
 - A backend payment intent
+- A quoted payable amount
 - A clear status lifecycle
 - On-chain transaction confirmation
 - Idempotent state transitions
 - Ledger reconciliation
 - Signed webhook delivery
+- A service unlock result
 - A readable payment summary for operators or agents
 
 StableFlow AgentPay focuses on this infrastructure layer instead of trying to build a complex DeFi protocol.
@@ -50,7 +52,10 @@ StableFlow AgentPay focuses on this infrastructure layer instead of trying to bu
 中文注释：下面这张流程图就是 demo 的主线。录视频或讲项目时，可以按这个顺序解释，不需要先讲代码细节。
 
 ```text
-AI agent requests access to a paid service
+Merchant creates a paid API or report checkout
+        |
+        v
+Go API quotes a C2FLR amount
         |
         v
 Go API creates a service request
@@ -77,7 +82,7 @@ Ledger entry is created
 Signed webhook is delivered or locally recorded
         |
         v
-Payment summary is generated
+Paid service is unlocked and summarized
 ```
 
 ## Current Implementation
@@ -94,20 +99,24 @@ Implemented:
 - Service request, ledger entry, and webhook event models
 - HTTP JSON API
 - In-memory persistence adapter
+- Optional JSON file persistence adapter for local demo durability
+- FTSO-style static quote adapter for USD-to-C2FLR demo pricing
 - Local signed webhook adapter
 - Real HTTP webhook sender
 - Flare Coston2 transaction receipt verifier
 - Solidity payment-recording contract
 - Hardhat compile, test, deploy, and demo payment scripts
-- Minimal React + Vite + MetaMask demo UI
+- React + Vite merchant console with payment, ledger, webhook, quote, and unlock views
+- Demo seed endpoint for preloading paid checkout history
 - Unit tests for domain logic, application use cases, webhook delivery, chain log parsing, and Solidity contract behavior
 
 Not implemented yet:
 
-- Production database
+- Production SQL database
 - Auth or merchant accounts
 - Mainnet deployment
 - Background chain event listener
+- Real FTSO/FDC/FAssets integration
 - Real AI API integration
 - Production webhook retry queue
 - Custody or key management
@@ -131,12 +140,14 @@ cmd/stableflow-api/                 HTTP API entrypoint
 internal/payment/domain/            Domain models and invariants
 internal/payment/application/       Use cases and ports
 internal/payment/adapters/memory/   In-memory persistence
+internal/payment/adapters/filejson/ JSON file persistence for local demos
 internal/payment/adapters/webhook/  Local and HTTP webhook delivery
 internal/payment/adapters/summary/  Template payment summary
+internal/payment/adapters/quote/    Demo quote provider
 internal/payment/adapters/chain/    Flare receipt verifier
 internal/payment/ports/httpapi/     HTTP JSON adapter
 contracts/                          Solidity contract and Hardhat scripts
-web/                                MetaMask demo UI
+web/                                Merchant console and MetaMask demo UI
 docs/                               Product, architecture, API, demo, and plan docs
 ```
 
@@ -147,7 +158,7 @@ Backend:
 - Go
 - Standard library HTTP server
 - DDD-style internal packages
-- In-memory storage for the MVP
+- In-memory storage by default, optional JSON file persistence for demos
 - JSON-RPC receipt verification for Flare Coston2
 
 Blockchain:
@@ -192,6 +203,8 @@ STABLEFLOW_WEBHOOK_SECRET=dev-secret
 STABLEFLOW_WEBHOOK_DELIVERY=local
 FLARE_RPC_URL=https://coston2-api.flare.network/ext/C/rpc
 STABLEFLOW_PAYMENT_CONTRACT=0x...
+STABLEFLOW_STORE_PATH=data/stableflow.json
+STABLEFLOW_DEMO_C2FLR_USD_PRICE=10
 ```
 
 Webhook modes:
@@ -255,12 +268,15 @@ Core endpoints:
 ```text
 POST /v1/service-requests
 POST /v1/payment-intents
+GET  /v1/payment-intents
 GET  /v1/payment-intents/{id}
 POST /v1/payment-intents/{id}/transaction
 POST /v1/payment-intents/{id}/chain-transaction
 POST /v1/payment-intents/{id}/summary
 GET  /v1/ledger
 GET  /v1/webhook-events
+GET  /v1/quote?usd_amount=0.01&asset=C2FLR
+POST /v1/demo/seed
 ```
 
 Two confirmation paths exist:

@@ -82,7 +82,7 @@ The weak points are:
 - current payment asset is native C2FLR, not FXRP or FAssets
 - data is in memory, not in a production database
 - no hosted public demo yet
-- no merchant dashboard beyond the demo UI
+- no hosted merchant dashboard yet
 - no production webhook retry queue
 - summary generation is template-based, not a real AI integration
 
@@ -91,7 +91,7 @@ Submission framing should be:
 ```text
 This is a working Coston2 MVP of a payment operations layer.
 It proves the full payment confirmation and service unlock flow.
-Future work extends it to FXRP/FAssets, persistent storage, merchant dashboards, and production webhook reliability.
+Future work extends it to FXRP/FAssets, hosted deployment, production SQL storage, and production webhook reliability.
 ```
 
 ## What Not To Claim
@@ -150,10 +150,10 @@ If there is more time before submission, prioritize in this order:
 
 1. Record a clear two to three minute demo video.
 2. Show webhook.site receiving the signed `payment.paid` event.
-3. Add a small dashboard/table for payment intents, ledger entries, and webhook events.
-4. Host the frontend and backend so judges can click a public demo.
-5. Add persistent storage such as SQLite or Postgres.
-6. Add a future-facing FXRP/FAssets payment path or documented interface.
+3. Host the frontend and backend so judges can click a public demo.
+4. Add a future-facing FXRP/FAssets payment path or documented interface.
+5. Replace the static quote adapter with a real FTSO-backed quote adapter.
+6. Add production SQL storage and webhook retry delivery.
 7. Verify and link the deployed contract if the explorer supports it.
 
 The best upgrade for competitiveness is not adding random features. The best upgrade is making the product feel like a real merchant/payment workflow on Flare.

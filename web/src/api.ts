@@ -18,14 +18,62 @@ export type PaymentIntent = {
   payment_contract: string;
   webhook_url: string;
   tx_hash: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LedgerEntry = {
+  id: string;
+  payment_intent_id: string;
+  tx_hash: string;
+  amount: string;
+  asset: string;
+  chain_id: number;
+  entry_type: string;
+  created_at: string;
+};
+
+export type WebhookEvent = {
+  id: string;
+  payment_intent_id: string;
+  event_type: string;
+  delivery_url: string;
+  signature: string;
+  status: string;
+  created_at: string;
+  delivered_at?: string;
+};
+
+export type PaymentQuote = {
+  usd_amount: string;
+  asset: string;
+  amount: string;
+  price_usd: string;
+  price_source: string;
+  expires_at: string;
 };
 
 export type ConfirmPaymentResponse = {
   payment_intent: PaymentIntent;
-  ledger_entry: unknown;
-  webhook_event: unknown;
+  ledger_entry: LedgerEntry;
+  webhook_event: WebhookEvent;
   summary: string;
 };
+
+type ListResponse<T> = {
+  items: T[];
+};
+
+async function getJSON<T>(path: string): Promise<T> {
+  const response = await fetch(`${apiBaseURL}${path}`);
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
 
 async function postJSON<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${apiBaseURL}${path}`, {
@@ -60,6 +108,26 @@ export async function createPaymentIntent(input: {
   return postJSON<PaymentIntent>("/v1/payment-intents", input);
 }
 
+export async function listPaymentIntents() {
+  const response = await getJSON<ListResponse<PaymentIntent>>("/v1/payment-intents");
+  return response.items;
+}
+
+export async function listLedgerEntries() {
+  const response = await getJSON<ListResponse<LedgerEntry>>("/v1/ledger");
+  return response.items;
+}
+
+export async function listWebhookEvents() {
+  const response = await getJSON<ListResponse<WebhookEvent>>("/v1/webhook-events");
+  return response.items;
+}
+
+export async function quotePayment(usdAmount: string, asset = "C2FLR") {
+  const query = new URLSearchParams({ usd_amount: usdAmount, asset });
+  return getJSON<PaymentQuote>(`/v1/quote?${query.toString()}`);
+}
+
 export async function confirmPaymentWithChainReceipt(paymentIntentId: string, txHash: string) {
   return postJSON<ConfirmPaymentResponse>(`/v1/payment-intents/${paymentIntentId}/chain-transaction`, {
     tx_hash: txHash
@@ -70,4 +138,17 @@ export async function confirmPaymentWithSubmittedHash(paymentIntentId: string, t
   return postJSON<ConfirmPaymentResponse>(`/v1/payment-intents/${paymentIntentId}/transaction`, {
     tx_hash: txHash
   });
+}
+
+export async function seedDemoData(input: {
+  service_id: string;
+  description: string;
+  usd_amount: string;
+  amount: string;
+  asset: string;
+  chain_id: number;
+  payment_contract: string;
+  webhook_url: string;
+}) {
+  return postJSON<ConfirmPaymentResponse>("/v1/demo/seed", input);
 }

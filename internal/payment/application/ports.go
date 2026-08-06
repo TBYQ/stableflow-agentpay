@@ -21,11 +21,13 @@ func NotFound(resource, id string) error {
 type ServiceRequestRepository interface {
 	SaveServiceRequest(ctx context.Context, request *domain.ServiceRequest) error
 	GetServiceRequest(ctx context.Context, id string) (*domain.ServiceRequest, error)
+	ListServiceRequests(ctx context.Context) ([]domain.ServiceRequest, error)
 }
 
 type PaymentIntentRepository interface {
 	SavePaymentIntent(ctx context.Context, intent *domain.PaymentIntent) error
 	GetPaymentIntent(ctx context.Context, id string) (*domain.PaymentIntent, error)
+	ListPaymentIntents(ctx context.Context) ([]domain.PaymentIntent, error)
 }
 
 type LedgerRepository interface {
@@ -85,6 +87,24 @@ type PaymentSummaryInput struct {
 
 type SummaryGenerator interface {
 	GeneratePaymentSummary(ctx context.Context, input PaymentSummaryInput) (string, error)
+}
+
+type QuoteRequest struct {
+	USDAmount string
+	Asset     string
+}
+
+type PaymentQuote struct {
+	USDAmount   string    `json:"usd_amount"`
+	Asset       string    `json:"asset"`
+	Amount      string    `json:"amount"`
+	PriceUSD    string    `json:"price_usd"`
+	PriceSource string    `json:"price_source"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}
+
+type QuoteProvider interface {
+	QuotePayment(ctx context.Context, request QuoteRequest) (*PaymentQuote, error)
 }
 
 type Clock interface {

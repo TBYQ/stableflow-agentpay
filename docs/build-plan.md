@@ -240,7 +240,7 @@ If time becomes tight, keep the core demo:
 
 Cut first:
 
-- Production database
+- Production SQL database
 - Advanced UI polish
 - Real AI integration
 - Background listener

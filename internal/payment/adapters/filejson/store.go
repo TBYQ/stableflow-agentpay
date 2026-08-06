@@ -1,7 +1,11 @@
-package memory
+package filejson
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -11,19 +15,32 @@ import (
 
 type Store struct {
 	mu              sync.RWMutex
+	path            string
 	serviceRequests map[string]domain.ServiceRequest
 	paymentIntents  map[string]domain.PaymentIntent
 	ledgerEntries   map[string]domain.LedgerEntry
 	webhookEvents   map[string]domain.WebhookEvent
 }
 
-func NewStore() *Store {
-	return &Store{
+type snapshot struct {
+	ServiceRequests map[string]domain.ServiceRequest `json:"service_requests"`
+	PaymentIntents  map[string]domain.PaymentIntent  `json:"payment_intents"`
+	LedgerEntries   map[string]domain.LedgerEntry    `json:"ledger_entries"`
+	WebhookEvents   map[string]domain.WebhookEvent   `json:"webhook_events"`
+}
+
+func NewStore(path string) (*Store, error) {
+	store := &Store{
+		path:            path,
 		serviceRequests: map[string]domain.ServiceRequest{},
 		paymentIntents:  map[string]domain.PaymentIntent{},
 		ledgerEntries:   map[string]domain.LedgerEntry{},
 		webhookEvents:   map[string]domain.WebhookEvent{},
 	}
+	if err := store.load(); err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 func (s *Store) SaveServiceRequest(ctx context.Context, request *domain.ServiceRequest) error {
@@ -31,7 +48,7 @@ func (s *Store) SaveServiceRequest(ctx context.Context, request *domain.ServiceR
 	defer s.mu.Unlock()
 
 	s.serviceRequests[request.ID] = *request
-	return nil
+	return s.persistLocked()
 }
 
 func (s *Store) GetServiceRequest(ctx context.Context, id string) (*domain.ServiceRequest, error) {
@@ -64,7 +81,7 @@ func (s *Store) SavePaymentIntent(ctx context.Context, intent *domain.PaymentInt
 	defer s.mu.Unlock()
 
 	s.paymentIntents[intent.ID] = *intent
-	return nil
+	return s.persistLocked()
 }
 
 func (s *Store) GetPaymentIntent(ctx context.Context, id string) (*domain.PaymentIntent, error) {
@@ -97,7 +114,7 @@ func (s *Store) AppendLedgerEntry(ctx context.Context, entry *domain.LedgerEntry
 	defer s.mu.Unlock()
 
 	s.ledgerEntries[entry.ID] = *entry
-	return nil
+	return s.persistLocked()
 }
 
 func (s *Store) ListLedgerEntries(ctx context.Context) ([]domain.LedgerEntry, error) {
@@ -131,7 +148,7 @@ func (s *Store) SaveWebhookEvent(ctx context.Context, event *domain.WebhookEvent
 	defer s.mu.Unlock()
 
 	s.webhookEvents[event.ID] = *event
-	return nil
+	return s.persistLocked()
 }
 
 func (s *Store) ListWebhookEvents(ctx context.Context) ([]domain.WebhookEvent, error) {
@@ -146,6 +163,56 @@ func (s *Store) ListWebhookEvents(ctx context.Context) ([]domain.WebhookEvent, e
 		return events[i].CreatedAt.After(events[j].CreatedAt)
 	})
 	return events, nil
+}
+
+func (s *Store) load() error {
+	body, err := os.ReadFile(s.path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+
+	var snap snapshot
+	if err := json.Unmarshal(body, &snap); err != nil {
+		return err
+	}
+	if snap.ServiceRequests != nil {
+		s.serviceRequests = snap.ServiceRequests
+	}
+	if snap.PaymentIntents != nil {
+		s.paymentIntents = snap.PaymentIntents
+	}
+	if snap.LedgerEntries != nil {
+		s.ledgerEntries = snap.LedgerEntries
+	}
+	if snap.WebhookEvents != nil {
+		s.webhookEvents = snap.WebhookEvents
+	}
+	return nil
+}
+
+func (s *Store) persistLocked() error {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return err
+	}
+
+	body, err := json.MarshalIndent(snapshot{
+		ServiceRequests: s.serviceRequests,
+		PaymentIntents:  s.paymentIntents,
+		LedgerEntries:   s.ledgerEntries,
+		WebhookEvents:   s.webhookEvents,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	tmp := s.path + ".tmp"
+	if err := os.WriteFile(tmp, body, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, s.path)
 }
 
 func clone[T any](value *T) *T {

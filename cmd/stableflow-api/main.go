@@ -6,15 +6,34 @@ import (
 	"os"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/chain/flare"
+	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/filejson"
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/memory"
+	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/quote"
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/summary"
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/webhook"
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/application"
 	httpapi "github.com/TBYQ/stableflow-agentpay/internal/payment/ports/httpapi"
 )
 
+type paymentStore interface {
+	application.ServiceRequestRepository
+	application.PaymentIntentRepository
+	application.LedgerRepository
+	application.WebhookEventRepository
+}
+
 func main() {
-	store := memory.NewStore()
+	var store paymentStore = memory.NewStore()
+	if storePath := os.Getenv("STABLEFLOW_STORE_PATH"); storePath != "" {
+		fileStore, err := filejson.NewStore(storePath)
+		if err != nil {
+			log.Fatalf("open JSON store: %v", err)
+		}
+		store = fileStore
+		log.Printf("JSON store enabled at %s", storePath)
+	}
+
+	clock := application.SystemClock{}
 	var webhookSender application.WebhookSender = webhook.NewLocalSigner(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"))
 	if os.Getenv("STABLEFLOW_WEBHOOK_DELIVERY") == "http" {
 		webhookSender = webhook.NewHTTPSender(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"), nil)
@@ -40,7 +59,8 @@ func main() {
 		WebhookSender:   webhookSender,
 		ChainVerifier:   chainVerifier,
 		Summary:         summary.TemplateGenerator{},
-		Clock:           application.SystemClock{},
+		Quote:           quote.NewStaticProvider(envOrDefault("STABLEFLOW_DEMO_C2FLR_USD_PRICE", "10"), clock),
+		Clock:           clock,
 		IDs:             application.NewULIDGenerator(),
 	})
 
