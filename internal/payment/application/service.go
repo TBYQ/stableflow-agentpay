@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/domain"
@@ -143,11 +144,53 @@ func (s *Service) ConfirmPaymentFromChain(ctx context.Context, cmd ConfirmPaymen
 			cmd.PaymentIntentID,
 		)
 	}
+	intent, err := s.paymentIntents.GetPaymentIntent(ctx, cmd.PaymentIntentID)
+	if err != nil {
+		return nil, err
+	}
+	serviceRequest, err := s.serviceRequests.GetServiceRequest(ctx, intent.ServiceRequestID)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(intent.Asset, chainPayment.Asset) {
+		return nil, fmt.Errorf("%w: chain event asset %s does not match payment intent asset %s", domain.ErrValidation, chainPayment.Asset, intent.Asset)
+	}
+	if intent.ChainID != chainPayment.ChainID {
+		return nil, fmt.Errorf("%w: chain event chain id %d does not match payment intent chain id %d", domain.ErrValidation, chainPayment.ChainID, intent.ChainID)
+	}
+	if serviceRequest.ServiceID != chainPayment.ServiceID {
+		return nil, fmt.Errorf("%w: chain event service id %s does not match payment intent service id %s", domain.ErrValidation, chainPayment.ServiceID, serviceRequest.ServiceID)
+	}
+	expectedAmount, err := paymentAmountBaseUnits(intent.Amount, intent.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if chainPayment.AmountWei != expectedAmount.String() {
+		return nil, fmt.Errorf("%w: chain event amount %s does not match payment intent amount %s", domain.ErrValidation, chainPayment.AmountWei, expectedAmount.String())
+	}
 
 	return s.ConfirmPayment(ctx, ConfirmPaymentCommand{
 		PaymentIntentID: cmd.PaymentIntentID,
 		TxHash:          chainPayment.TxHash,
 	})
+}
+
+// paymentAmountBaseUnits converts the quoted decimal amount into the 18-decimal
+// representation emitted by both native C2FLR and the Coston2 FXRP ERC-20.
+func paymentAmountBaseUnits(amount, asset string) (*big.Int, error) {
+	if !strings.EqualFold(asset, "C2FLR") && !strings.EqualFold(asset, "FXRP") {
+		return nil, fmt.Errorf("%w: unsupported on-chain payment asset %s", domain.ErrValidation, asset)
+	}
+	decimalAmount, ok := new(big.Rat).SetString(strings.TrimSpace(amount))
+	if !ok || decimalAmount.Sign() <= 0 {
+		return nil, fmt.Errorf("%w: payment amount must be a positive decimal", domain.ErrValidation)
+	}
+	baseUnitScale := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	baseUnits := new(big.Rat).Mul(decimalAmount, new(big.Rat).SetInt(baseUnitScale))
+	if !baseUnits.IsInt() {
+		return nil, fmt.Errorf("%w: payment amount has more than 18 decimal places", domain.ErrValidation)
+	}
+	return baseUnits.Num(), nil
 }
 
 func (s *Service) ConfirmPayment(ctx context.Context, cmd ConfirmPaymentCommand) (*ConfirmPaymentResult, error) {

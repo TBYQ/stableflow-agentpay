@@ -35,7 +35,7 @@ Merchant console additions:
 
 ```text
 GET  /v1/payment-intents
-GET  /v1/quote?usd_amount=0.01&asset=C2FLR
+GET  /v1/quote?usd_amount=0.01&asset=C2FLR|FXRP
 POST /v1/demo/seed
 ```
 
@@ -165,7 +165,9 @@ Response:
 GET /v1/quote?usd_amount=0.01&asset=C2FLR
 ```
 
-This is a demo FTSO-style static quote adapter, not a real FTSO price feed. It keeps the product shape ready for a future real Flare quote adapter.
+By default, this endpoint reads the live `FLR/USD` or `XRP/USD` block-latency feed from Flare FTSOv2 through Coston2 RPC. The backend first resolves the `FtsoV2` contract through the Flare Contract Registry, then calls `getFeedById` with the asset's official feed ID.
+
+Set `STABLEFLOW_QUOTE_MODE=static` only when an offline demo needs a deterministic fallback. Static mode returns `demo-ftso-style-static` and must not be described as a real FTSO integration.
 
 Response:
 
@@ -173,12 +175,16 @@ Response:
 {
   "usd_amount": "0.01",
   "asset": "C2FLR",
-  "amount": "0.001",
-  "price_usd": "10",
-  "price_source": "demo-ftso-style-static",
-  "expires_at": "2026-08-06T10:02:00Z"
+  "amount": "1.684579",
+  "price_usd": "0.0059362",
+  "price_source": "flare-ftso-v2-flr-usd",
+  "feed_id": "0x01464c522f55534400000000000000000000000000",
+  "price_updated_at": "2026-08-07T00:33:43Z",
+  "expires_at": "2026-08-07T00:34:17Z"
 }
 ```
+
+The values above are an example only. The market price, returned C2FLR or FXRP amount, and update time change as FTSOv2 updates.
 
 ## Seed Demo Data
 
@@ -259,7 +265,7 @@ POST /v1/payment-intents/{id}/chain-transaction
 
 This endpoint verifies the transaction receipt through Flare Coston2 JSON-RPC and parses the `PaymentRecorded` event emitted by `StableFlowPayment`.
 
-The backend confirms the payment only if the event `paymentIntentId` matches the requested backend payment intent id.
+The backend confirms the payment only if the event matches the backend payment intent id, service id, selected asset, quoted 18-decimal amount, and Coston2 chain id.
 
 中文注释：这是最终 demo 更推荐使用的接口。它会查 Flare Coston2 的交易收据，解析合约事件，并确认事件里的 paymentIntentId 确实等于后端这张 payment intent 的 id。
 

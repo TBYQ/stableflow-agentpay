@@ -61,7 +61,7 @@ StableFlow AgentPay fills this gap. AI agents are one possible user group, but t
 
 The MVP supports this end-to-end flow:
 
-1. Quote a payable C2FLR amount for a paid digital service.
+1. Quote a payable C2FLR or FXRP amount for a paid digital service using the matching FTSOv2 USD feed.
 2. Create a service request for that service.
 3. Create a payment intent for that service request.
 4. Pay on Flare Coston2 through MetaMask.
@@ -115,7 +115,7 @@ Current behavior:
 
 ### On-chain Payment Recording
 
-The Solidity contract `StableFlowPayment` accepts native C2FLR payments and emits:
+The Solidity contract `StableFlowPayment` accepts native C2FLR payments and approved FXRP ERC-20 payments, then emits:
 
 ```text
 PaymentRecorded(paymentIntentHash, paymentIntentId, payer, amount, asset, serviceId, chainId, recordedAt)
@@ -123,7 +123,7 @@ PaymentRecorded(paymentIntentHash, paymentIntentId, payer, amount, asset, servic
 
 The contract prevents duplicate recording for the same `paymentIntentId`.
 
-中文注释：合约不做复杂资金管理，只负责收测试网 C2FLR、记录 payment intent，并发出事件。后端通过这个事件确认付款。
+中文注释：合约会把 C2FLR 或 FXRP 直接转给商户结算地址、记录 payment intent，并发出事件。后端通过这个事件确认付款。
 
 ### Chain Receipt Verification
 
@@ -170,7 +170,13 @@ The current implementation uses a template-based summary generator. A real AI AP
 
 ### Merchant Console
 
-The React UI now behaves like a small merchant payment console instead of a raw form. It shows checkout creation, quote results, wallet payment actions, service unlock state, payment intents, ledger entries, and webhook events.
+The React UI now behaves like a small merchant payment console instead of a raw form. It shows checkout creation, the FTSOv2 quote source and update time, wallet payment actions, service unlock state, payment intents, ledger entries, and webhook events.
+
+### FTSOv2 Pricing
+
+The default quote provider reads the Coston2 `FLR/USD` or `XRP/USD` FTSOv2 block-latency feed. It converts a USD service price into the selected C2FLR or FXRP amount and returns the feed ID, price, and feed timestamp with the quote.
+
+Static pricing remains available only as an explicit offline demo mode. It is not a substitute for the FTSOv2 integration.
 
 ### Demo Persistence
 
@@ -193,7 +199,7 @@ The MVP intentionally does not include:
 - Production SQL database
 - Complex DeFi strategy
 - Cross-chain settlement
-- Real FTSO/FDC/FAssets settlement
+- Mainnet FAssets settlement and automatic browser-side FDC proof submission
 - Full autonomous agent wallet management
 - Production webhook retry queue
 

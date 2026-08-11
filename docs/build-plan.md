@@ -92,7 +92,7 @@ browser opened the web UI and Create Intent successfully called the Go API
 
 中文注释：这些是之前本地通过的验证项。每次重要改动后建议至少重新跑 `go test ./...`、`contracts npm test` 和 `web npm run build`。
 
-Latest Coston2 verification completed:
+Historical Coston2 verification completed on the original C2FLR-only contract:
 
 ```text
 StableFlowPayment contract:
@@ -162,7 +162,7 @@ StableFlowPayment deployed to: 0x...
 Captured output:
 
 ```text
-StableFlowPayment deployed to: 0x09982Cfd1c566f749559c495A1a21843939C9E4b
+StableFlowPayment V1 deployed to: 0x09982Cfd1c566f749559c495A1a21843939C9E4b
 ```
 
 ### Wire Contract Address
@@ -205,7 +205,8 @@ Submission assets:
 - Short description
 - Target users
 - How the project uses Flare
-- Contract address: `0x09982Cfd1c566f749559c495A1a21843939C9E4b`
+- Payment contract V2 (C2FLR + FXRP): `0x03236dab5EA8F10b5504940f3750b36d21e6DB7B`
+- FDC proof contract: `0x11615a8cdEeD3887E6E8CadE1431971F8bCDc23C`
 - Example transaction hash: `0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0`
 - Short roadmap
 

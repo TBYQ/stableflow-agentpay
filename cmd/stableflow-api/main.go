@@ -34,6 +34,10 @@ func main() {
 	}
 
 	clock := application.SystemClock{}
+	quoteProvider, err := newQuoteProvider(clock)
+	if err != nil {
+		log.Fatalf("configure quote provider: %v", err)
+	}
 	var webhookSender application.WebhookSender = webhook.NewLocalSigner(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"))
 	if os.Getenv("STABLEFLOW_WEBHOOK_DELIVERY") == "http" {
 		webhookSender = webhook.NewHTTPSender(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"), nil)
@@ -59,7 +63,7 @@ func main() {
 		WebhookSender:   webhookSender,
 		ChainVerifier:   chainVerifier,
 		Summary:         summary.TemplateGenerator{},
-		Quote:           quote.NewStaticProvider(envOrDefault("STABLEFLOW_DEMO_C2FLR_USD_PRICE", "10"), clock),
+		Quote:           quoteProvider,
 		Clock:           clock,
 		IDs:             application.NewULIDGenerator(),
 	})
@@ -71,6 +75,28 @@ func main() {
 	if err := http.ListenAndServe(addr, server.Routes()); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func newQuoteProvider(clock application.Clock) (application.QuoteProvider, error) {
+	if os.Getenv("STABLEFLOW_QUOTE_MODE") == "static" {
+		log.Printf("Static demo quote provider enabled")
+		return quote.NewStaticProvider(
+			envOrDefault("STABLEFLOW_DEMO_C2FLR_USD_PRICE", "10"),
+			envOrDefault("STABLEFLOW_DEMO_FXRP_USD_PRICE", "2"),
+			clock,
+		), nil
+	}
+
+	provider, err := quote.NewFTSOProvider(
+		envOrDefault("FLARE_RPC_URL", "https://coston2-api.flare.network/ext/C/rpc"),
+		envOrDefault("STABLEFLOW_FLARE_CONTRACT_REGISTRY", quote.DefaultFlareContractRegistry),
+		clock,
+	)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Flare FTSOv2 quote provider enabled for FLR/USD and XRP/USD")
+	return provider, nil
 }
 
 func envOrDefault(key string, fallback string) string {

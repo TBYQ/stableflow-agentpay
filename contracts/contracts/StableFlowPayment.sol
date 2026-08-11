@@ -3,19 +3,27 @@ pragma solidity ^0.8.28;
 
 /**
  * @title StableFlowPayment
- * @notice Minimal payment-recording contract for the StableFlow AgentPay MVP.
+ * @notice Payment-recording contract for the StableFlow AgentPay MVP.
  *
  * The contract intentionally does not implement a full checkout, merchant
  * account system, or settlement protocol. Those responsibilities live in the
  * Go backend, where payment intents, ledger reconciliation, webhook delivery,
  * and summaries can evolve faster.
  *
- * For the hackathon MVP, this contract provides the one thing the backend needs
- * from Flare Coston2: a real on-chain transaction that emits a stable payment
- * confirmation event.
+ * It accepts the Coston2 native asset and FXRP, the FAsset representation of
+ * XRP on Flare. Both routes emit the same reconciliation event so the backend
+ * can verify a checkout without trusting browser-provided payment metadata.
  */
+interface IERC20TransferFrom {
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
 contract StableFlowPayment {
     string public constant nativeAsset = "C2FLR";
+    string public constant fxrpAsset = "FXRP";
+
+    IERC20TransferFrom public immutable fxrp;
+    address payable public immutable settlementRecipient;
 
     struct PaymentRecord {
         string paymentIntentId;
@@ -44,6 +52,21 @@ contract StableFlowPayment {
     error ZeroPaymentAmount();
     error PaymentAlreadyRecorded(bytes32 paymentIntentHash);
     error PaymentNotFound(bytes32 paymentIntentHash);
+    error InvalidSettlementRecipient();
+    error InvalidFXRPToken();
+    error FXRPTransferFailed();
+    error NativeSettlementFailed();
+
+    constructor(address fxrpToken, address payable merchantRecipient) {
+        if (fxrpToken == address(0)) {
+            revert InvalidFXRPToken();
+        }
+        if (merchantRecipient == address(0)) {
+            revert InvalidSettlementRecipient();
+        }
+        fxrp = IERC20TransferFrom(fxrpToken);
+        settlementRecipient = merchantRecipient;
+    }
 
     /**
      * @notice Records a native C2FLR payment for a backend-created payment intent.
@@ -58,14 +81,48 @@ contract StableFlowPayment {
         string calldata paymentIntentId,
         string calldata serviceId
     ) external payable returns (bytes32 paymentIntentHash) {
+        if (msg.value == 0) {
+            revert ZeroPaymentAmount();
+        }
+
+        paymentIntentHash = _recordPayment(paymentIntentId, serviceId, msg.value, nativeAsset);
+        (bool sent,) = settlementRecipient.call{value: msg.value}("");
+        if (!sent) {
+            revert NativeSettlementFailed();
+        }
+    }
+
+    /**
+     * @notice Records an FXRP payment after the payer grants this contract an ERC-20 allowance.
+     * @dev FXRP is forwarded to the merchant recipient in the same transaction. The
+     * event still originates from this contract, so reconciliation stays uniform.
+     */
+    function recordFXRPPayment(
+        string calldata paymentIntentId,
+        string calldata serviceId,
+        uint256 amount
+    ) external returns (bytes32 paymentIntentHash) {
+        if (amount == 0) {
+            revert ZeroPaymentAmount();
+        }
+
+        paymentIntentHash = _recordPayment(paymentIntentId, serviceId, amount, fxrpAsset);
+        if (!fxrp.transferFrom(msg.sender, settlementRecipient, amount)) {
+            revert FXRPTransferFailed();
+        }
+    }
+
+    function _recordPayment(
+        string calldata paymentIntentId,
+        string calldata serviceId,
+        uint256 amount,
+        string memory asset
+    ) private returns (bytes32 paymentIntentHash) {
         if (bytes(paymentIntentId).length == 0) {
             revert EmptyPaymentIntentId();
         }
         if (bytes(serviceId).length == 0) {
             revert EmptyServiceId();
-        }
-        if (msg.value == 0) {
-            revert ZeroPaymentAmount();
         }
 
         paymentIntentHash = keccak256(bytes(paymentIntentId));
@@ -78,7 +135,7 @@ contract StableFlowPayment {
             paymentIntentId: paymentIntentId,
             serviceId: serviceId,
             payer: msg.sender,
-            amount: msg.value,
+            amount: amount,
             chainId: block.chainid,
             recordedAt: recordedAt
         });
@@ -87,8 +144,8 @@ contract StableFlowPayment {
             paymentIntentHash,
             paymentIntentId,
             msg.sender,
-            msg.value,
-            nativeAsset,
+            amount,
+            asset,
             serviceId,
             block.chainid,
             recordedAt

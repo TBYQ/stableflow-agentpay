@@ -247,13 +247,56 @@ func TestConfirmPaymentFromChainRejectsMismatchedPaymentIntentID(t *testing.T) {
 type fakeChainVerifier struct {
 	paymentIntentID string
 	txHash          string
+	asset           string
+	amountWei       string
+	serviceID       string
+	chainID         int64
 }
 
 func (v fakeChainVerifier) VerifyPayment(ctx context.Context, txHash string) (*application.RecordedChainPayment, error) {
 	return &application.RecordedChainPayment{
 		PaymentIntentID: v.paymentIntentID,
 		TxHash:          v.txHash,
-		Asset:           "C2FLR",
-		ChainID:         114,
+		Asset:           firstNonEmpty(v.asset, "C2FLR"),
+		AmountWei:       firstNonEmpty(v.amountWei, "1000000000000000000"),
+		ServiceID:       firstNonEmpty(v.serviceID, "premium-market-report"),
+		ChainID:         firstChainID(v.chainID, 114),
 	}, nil
+}
+
+func firstNonEmpty(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func firstChainID(value, fallback int64) int64 {
+	if value == 0 {
+		return fallback
+	}
+	return value
+}
+
+func TestConfirmPaymentFromChainRejectsMismatchedFXRPAmount(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, fakeChainVerifier{
+		paymentIntentID: "pi_001",
+		txHash:          "0xabc123",
+		asset:           "FXRP",
+		amountWei:       "999",
+	})
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{ServiceID: "premium-market-report", Description: "FXRP checkout"})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{ServiceRequestID: request.ID, Amount: "1", Asset: "FXRP", ChainID: 114})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+	_, err = service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{PaymentIntentID: intent.ID, TxHash: "0xabc123"})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
 }

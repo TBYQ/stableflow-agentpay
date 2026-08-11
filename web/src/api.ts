@@ -50,6 +50,8 @@ export type PaymentQuote = {
   amount: string;
   price_usd: string;
   price_source: string;
+  feed_id?: string;
+  price_updated_at: string;
   expires_at: string;
 };
 

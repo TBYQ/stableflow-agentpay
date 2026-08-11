@@ -5,7 +5,7 @@ StableFlow AgentPay is payment intent and webhook infrastructure on Flare for pa
 It turns a raw on-chain payment into a complete payment operations flow:
 
 ```text
-Quote -> Payment Intent -> Flare Coston2 transaction -> receipt verification -> ledger entry -> signed webhook -> service unlock
+FTSO quote -> Payment Intent -> C2FLR or FXRP payment -> receipt verification -> ledger entry -> signed webhook -> service unlock
 ```
 
 ## 中文速读
@@ -55,7 +55,7 @@ StableFlow AgentPay focuses on this infrastructure layer instead of trying to bu
 Merchant creates a paid API or report checkout
         |
         v
-Go API quotes a C2FLR amount
+Go API quotes a C2FLR or FXRP amount using the matching FTSOv2 feed
         |
         v
 Go API creates a service request
@@ -100,7 +100,10 @@ Implemented:
 - HTTP JSON API
 - In-memory persistence adapter
 - Optional JSON file persistence adapter for local demo durability
-- FTSO-style static quote adapter for USD-to-C2FLR demo pricing
+- Real Flare FTSOv2 FLR/USD and XRP/USD quote adapter, resolved through the Flare Contract Registry
+- Native C2FLR and FXRP FAsset checkout rails with a normalized receipt event
+- Onchain FDC-XRP payment proof contract and operator workflow
+- Optional static quote mode for offline demos only
 - Local signed webhook adapter
 - Real HTTP webhook sender
 - Flare Coston2 transaction receipt verifier
@@ -116,7 +119,7 @@ Not implemented yet:
 - Auth or merchant accounts
 - Mainnet deployment
 - Background chain event listener
-- Real FTSO/FDC/FAssets integration
+- Automated FDC proof submission from the merchant console
 - Real AI API integration
 - Production webhook retry queue
 - Custody or key management
@@ -143,7 +146,7 @@ internal/payment/adapters/memory/   In-memory persistence
 internal/payment/adapters/filejson/ JSON file persistence for local demos
 internal/payment/adapters/webhook/  Local and HTTP webhook delivery
 internal/payment/adapters/summary/  Template payment summary
-internal/payment/adapters/quote/    Demo quote provider
+internal/payment/adapters/quote/    Flare FTSOv2 and offline demo quote providers
 internal/payment/adapters/chain/    Flare receipt verifier
 internal/payment/ports/httpapi/     HTTP JSON adapter
 contracts/                          Solidity contract and Hardhat scripts
@@ -166,7 +169,7 @@ Blockchain:
 - Solidity
 - Hardhat
 - Flare Coston2 Testnet
-- Native test asset: C2FLR
+- Native test asset: C2FLR and FXRP FAsset settlement
 - MetaMask
 
 Frontend:
@@ -204,8 +207,20 @@ STABLEFLOW_WEBHOOK_DELIVERY=local
 FLARE_RPC_URL=https://coston2-api.flare.network/ext/C/rpc
 STABLEFLOW_PAYMENT_CONTRACT=0x...
 STABLEFLOW_STORE_PATH=data/stableflow.json
+STABLEFLOW_QUOTE_MODE=ftso
+STABLEFLOW_FLARE_CONTRACT_REGISTRY=0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019
 STABLEFLOW_DEMO_C2FLR_USD_PRICE=10
+STABLEFLOW_DEMO_FXRP_USD_PRICE=1
 ```
+
+Quote modes:
+
+```text
+ftso   -> default; reads FLR/USD or XRP/USD FTSOv2 feeds through Flare Coston2 RPC
+static -> offline demo fallback; uses STABLEFLOW_DEMO_C2FLR_USD_PRICE and STABLEFLOW_DEMO_FXRP_USD_PRICE
+```
+
+The FTSOv2 adapter resolves the `FtsoV2` contract dynamically through the Flare Contract Registry before reading the `FLR/USD` or `XRP/USD` feed. The quote response exposes the feed ID and price timestamp so the merchant console can show where the price came from.
 
 Webhook modes:
 
@@ -275,7 +290,7 @@ POST /v1/payment-intents/{id}/chain-transaction
 POST /v1/payment-intents/{id}/summary
 GET  /v1/ledger
 GET  /v1/webhook-events
-GET  /v1/quote?usd_amount=0.01&asset=C2FLR
+GET  /v1/quote?usd_amount=0.01&asset=C2FLR|FXRP
 POST /v1/demo/seed
 ```
 
@@ -317,10 +332,26 @@ browser: frontend opened and Create Intent successfully called the Go API
 
 ## Coston2 Demo Evidence
 
-The current Coston2 deployment and demo transaction are:
+The current Coston2 contracts are:
 
 ```text
-StableFlowPayment contract:
+StableFlowPayment V2 (C2FLR + FXRP):
+0x03236dab5EA8F10b5504940f3750b36d21e6DB7B
+
+StableFlowFDCPaymentProof (external XRPL payment attestation):
+0x11615a8cdEeD3887E6E8CadE1431971F8bCDc23C
+
+StableFlowPayment V2 explorer:
+https://coston2-explorer.flare.network/address/0x03236dab5EA8F10b5504940f3750b36d21e6DB7B
+
+FDC proof contract explorer:
+https://coston2-explorer.flare.network/address/0x11615a8cdEeD3887E6E8CadE1431971F8bCDc23C
+```
+
+The earlier C2FLR-only contract and paid transaction remain useful historical evidence for the original receipt-verification flow:
+
+```text
+StableFlowPayment V1:
 0x09982Cfd1c566f749559c495A1a21843939C9E4b
 
 Example paid transaction:
@@ -330,7 +361,7 @@ Coston2 explorer:
 https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
 ```
 
-This demo transaction was confirmed through `/v1/payment-intents/{id}/chain-transaction`. The backend parsed the Coston2 receipt, found the `PaymentRecorded` event, marked payment intent `pi_001` as `paid`, created ledger entry `le_001`, recorded webhook event `evt_001`, and generated a payment summary.
+That C2FLR demo transaction was confirmed through `/v1/payment-intents/{id}/chain-transaction`. The backend parsed the Coston2 receipt, found the `PaymentRecorded` event, marked payment intent `pi_001` as `paid`, created ledger entry `le_001`, recorded webhook event `evt_001`, and generated a payment summary. Use the V2 contract for all new C2FLR and FXRP checkout tests.
 
 ## Documentation
 
@@ -341,6 +372,7 @@ This demo transaction was confirmed through `/v1/payment-intents/{id}/chain-tran
 - [Demo Script](docs/demo-script.md)
 - [Build Plan](docs/build-plan.md)
 - [Submission TODO](docs/submission-todo.md)
+- [Flare Native Payment Rails](docs/flare-native-payment-rails.md)
 
 ## Hackathon Submission Story
 
@@ -350,7 +382,7 @@ StableFlow AgentPay is not only a payment button. It is a payment operations lay
 
 The strongest judging points are:
 
-- It uses Flare Coston2 for real testnet payment confirmation.
+- It uses Flare Coston2 for real testnet payment confirmation and real FTSOv2 FLR/USD pricing.
 - It keeps the smart contract intentionally small.
 - It shows serious backend infrastructure thinking: state machine, ledger, idempotency, webhook signatures, and clean architecture.
 - It is easy to explain in a 2-3 minute demo.

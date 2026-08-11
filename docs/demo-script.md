@@ -64,7 +64,7 @@ Create Checkout
 Explain:
 
 ```text
-The backend quotes a C2FLR amount, creates a service request, and creates a payment intent. The payment intent starts as pending_payment.
+The backend reads the matching live FTSOv2 feed: `FLR/USD` for a C2FLR checkout or `XRP/USD` for an FXRP checkout. It quotes the selected asset amount, creates a service request, and creates a payment intent. The payment intent starts as pending_payment.
 ```
 
 中文讲法：
@@ -90,7 +90,7 @@ The UI asks MetaMask to add or switch to Flare Coston2, chain id 114.
 中文讲法：
 
 ```text
-第二步连接 MetaMask。前端会请求钱包添加或切换到 Flare Coston2 测试网，chain id 是 114，测试币是 C2FLR。
+第二步连接 MetaMask。前端会请求钱包添加或切换到 Flare Coston2 测试网，chain id 是 114。C2FLR 用来支付网络手续费；选择 FXRP 时还需要先从官方 faucet 领取 FXRP 测试资产。
 ```
 
 ### Step 3: Pay on Flare Coston2
@@ -104,14 +104,13 @@ Pay on Flare
 Explain:
 
 ```text
-The user sends a native C2FLR testnet payment to StableFlowPayment.sol.
-The contract emits PaymentRecorded with the backend paymentIntentId.
+For C2FLR, the user sends a native testnet payment to `StableFlowPayment.sol`. For FXRP, MetaMask first approves the ERC-20 amount and then calls `recordFXRPPayment`. Both routes emit the same `PaymentRecorded` event with the backend payment intent ID.
 ```
 
 中文讲法：
 
 ```text
-第三步点击 Pay on Flare。用户用 C2FLR 测试币调用 StableFlowPayment 合约，合约记录这次 payment intent，并发出 PaymentRecorded 事件。
+第三步点击 Pay on Flare。C2FLR 直接付款；FXRP 会先出现一次 approve 确认，再出现一次结算确认。两条路线都会记录 payment intent，并发出 PaymentRecorded 事件。
 ```
 
 ### Step 4: Confirm backend
@@ -158,7 +157,7 @@ StableFlow AgentPay turns a simple on-chain payment into a payment operations la
 The MVP demonstrates:
 
 - Payment intents
-- Demo quote flow
+- Real FTSOv2 FLR/USD quote with feed source and update time
 - Flare Coston2 transaction confirmation
 - Ledger reconciliation
 - Signed webhook delivery

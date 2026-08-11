@@ -95,12 +95,14 @@ type QuoteRequest struct {
 }
 
 type PaymentQuote struct {
-	USDAmount   string    `json:"usd_amount"`
-	Asset       string    `json:"asset"`
-	Amount      string    `json:"amount"`
-	PriceUSD    string    `json:"price_usd"`
-	PriceSource string    `json:"price_source"`
-	ExpiresAt   time.Time `json:"expires_at"`
+	USDAmount      string    `json:"usd_amount"`
+	Asset          string    `json:"asset"`
+	Amount         string    `json:"amount"`
+	PriceUSD       string    `json:"price_usd"`
+	PriceSource    string    `json:"price_source"`
+	FeedID         string    `json:"feed_id,omitempty"`
+	PriceUpdatedAt time.Time `json:"price_updated_at"`
+	ExpiresAt      time.Time `json:"expires_at"`
 }
 
 type QuoteProvider interface {

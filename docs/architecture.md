@@ -84,7 +84,7 @@ Responsibilities:
 
 - Create in-memory or JSON file store
 - Configure webhook sender
-- Configure demo quote provider
+- Configure the FTSOv2 quote provider, or explicit offline static quote mode
 - Configure Flare receipt verifier when a contract address is present
 - Start HTTP server
 
@@ -149,9 +149,11 @@ This keeps payment intents, ledger entries, and webhook events across local demo
 
 ### `internal/payment/adapters/quote`
 
-Demo quote adapter.
+Quote adapters.
 
-The current provider returns a static FTSO-style quote for USD-to-C2FLR display. A real FTSO adapter can replace it later without changing domain logic.
+The default provider reads the FLR/USD or XRP/USD block-latency feed from FTSOv2 over Coston2 RPC. It resolves `FtsoV2` through the Flare Contract Registry before calling `getFeedById`, so the application does not hardcode the FTSOv2 implementation address.
+
+`STABLEFLOW_QUOTE_MODE=static` activates the static provider for offline recordings. This fallback is explicit so an unavailable RPC never silently becomes a fake market price.
 
 ### `internal/payment/adapters/webhook`
 
@@ -211,7 +213,7 @@ contracts/contracts/StableFlowPayment.sol
 
 Responsibilities:
 
-- Accept a native C2FLR payment
+- Accept a native C2FLR payment or an approved FXRP ERC-20 payment
 - Validate payment intent id and service id
 - Prevent duplicate recording for the same payment intent
 - Emit `PaymentRecorded`
@@ -231,11 +233,11 @@ web/
 
 Responsibilities:
 
-- Request a demo USD-to-C2FLR quote
+- Request a USD-to-C2FLR or USD-to-FXRP quote with its FTSOv2 source and update timestamp
 - Create service request through the Go API
 - Create payment intent through the Go API
 - Add or switch MetaMask to Flare Coston2
-- Call `recordPayment` on the deployed contract
+- Call `recordPayment` or `recordFXRPPayment` on the deployed contract
 - Send the tx hash back to the backend
 - Display checkout status, ledger entries, webhook events, and service unlock result
 

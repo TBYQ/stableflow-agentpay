@@ -18,7 +18,7 @@ func (c fixedClock) Now() time.Time {
 }
 
 func TestStaticProviderQuotesC2FLR(t *testing.T) {
-	provider := quote.NewStaticProvider("10", fixedClock{
+	provider := quote.NewStaticProvider("10", "2", fixedClock{
 		now: time.Date(2026, 8, 6, 10, 0, 0, 0, time.UTC),
 	})
 
@@ -32,7 +32,27 @@ func TestStaticProviderQuotesC2FLR(t *testing.T) {
 	if got.Amount != "0.001" {
 		t.Fatalf("expected 0.001 C2FLR, got %s", got.Amount)
 	}
-	if got.PriceSource != "demo-ftso-style-static" {
+	if got.PriceSource != "demo-ftso-style-static-flr-usd" {
+		t.Fatalf("unexpected price source %s", got.PriceSource)
+	}
+}
+
+func TestStaticProviderQuotesFXRP(t *testing.T) {
+	provider := quote.NewStaticProvider("10", "2", fixedClock{
+		now: time.Date(2026, 8, 6, 10, 0, 0, 0, time.UTC),
+	})
+
+	got, err := provider.QuotePayment(context.Background(), application.QuoteRequest{
+		USDAmount: "0.01",
+		Asset:     "FXRP",
+	})
+	if err != nil {
+		t.Fatalf("quote payment: %v", err)
+	}
+	if got.Amount != "0.005" {
+		t.Fatalf("expected 0.005 FXRP, got %s", got.Amount)
+	}
+	if got.PriceSource != "demo-ftso-style-static-xrp-usd" {
 		t.Fatalf("unexpected price source %s", got.PriceSource)
 	}
 }

@@ -183,7 +183,8 @@ The DoraHacks submission should receive a stable public URL.
 - Merchant console with payment intent, ledger, webhook, quote, and unlock views
 - Demo JSON persistence adapter
 - Demo seed endpoint
-- FTSO-style static quote adapter
+- Real FTSOv2 FLR/USD quote adapter resolved through the Flare Contract Registry
+- Explicit static quote fallback for offline demos
 - Flare Coston2 receipt verifier
 - Solidity `StableFlowPayment` contract
 - Hardhat tests
@@ -195,14 +196,26 @@ The DoraHacks submission should receive a stable public URL.
 1. Record final demo video.
 2. Replace the placeholder webhook URL with a real webhook.site URL if the final video should show an external webhook delivery.
 3. Capture webhook.site payload screenshot or screen recording if using HTTP webhook delivery.
-4. Submit BUIDL on DoraHacks.
+4. Record one FXRP checkout on the V2 contract after claiming Coston2 faucet assets.
+5. Optionally complete and record one fresh XRP Ledger Testnet FDC proof.
+6. Submit BUIDL on DoraHacks.
 
-中文注释：这几步是最终提交前的剩余主线。合约地址、真实交易哈希和 explorer 链接已经拿到，接下来最重要的是 demo 视频和 webhook 展示。
+中文注释：这几步是最终提交前的剩余主线。旧版 C2FLR 交易已经有证据；新版本更值得录的是 FXRP 付款和 webhook 展示。FDC 是加分项，只有 XRPL 测试交易证明真正注册成功后才展示为完成。
 
-Completed Coston2 evidence:
+Current Coston2 contracts:
 
 ```text
-StableFlowPayment contract:
+StableFlowPayment V2 (C2FLR + FXRP):
+0x03236dab5EA8F10b5504940f3750b36d21e6DB7B
+
+StableFlowFDCPaymentProof:
+0x11615a8cdEeD3887E6E8CadE1431971F8bCDc23C
+```
+
+Historical C2FLR confirmation evidence:
+
+```text
+StableFlowPayment V1:
 0x09982Cfd1c566f749559c495A1a21843939C9E4b
 
 Example paid transaction:
@@ -394,14 +407,15 @@ SaaS API providers, independent digital service providers, merchant-style Flare 
 How it uses Flare:
 
 ```text
-The MVP deploys a Solidity payment-recording contract to Flare Coston2. Users pay with MetaMask using C2FLR. The contract emits PaymentRecorded, and the Go backend verifies the transaction receipt through Flare Coston2 RPC before marking a payment intent as paid, creating a ledger entry, and sending a signed webhook.
+The MVP deploys payment and FDC proof contracts to Flare Coston2. A checkout can settle with native C2FLR or FXRP, using live FTSOv2 FLR/USD or XRP/USD quotes. The payment contract emits `PaymentRecorded`; the Go backend verifies the Coston2 receipt before marking a payment intent as paid, creating a ledger entry, and sending a signed webhook. A separate FDC contract can verify a recent external XRP Ledger Testnet payment when its proof is registered on Coston2.
 ```
 
 Technical materials:
 
 ```text
 GitHub: https://github.com/TBYQ/stableflow-agentpay
-Contract address: 0x09982Cfd1c566f749559c495A1a21843939C9E4b
+Payment contract (C2FLR + FXRP): 0x03236dab5EA8F10b5504940f3750b36d21e6DB7B
+FDC proof contract: 0x11615a8cdEeD3887E6E8CadE1431971F8bCDc23C
 Example transaction hash: 0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
 Explorer link: https://coston2-explorer.flare.network/tx/0xa1f0bd83eee2b84e94c29322c80c90be14989bec5f14e531d00e0e1635ea2ee0
 Demo video: TBD
@@ -410,7 +424,7 @@ Demo video: TBD
 Roadmap:
 
 ```text
-Next steps include hosted demo deployment, production SQL storage, background event indexing, real AI summary adapter, webhook retry queue, and Flare-native integrations such as real FTSO quotes, FDC proofs, FXRP, and FAssets settlement where useful.
+Next steps include hosted demo deployment, production SQL storage, background event indexing, real AI summary adapter, webhook retry queue, a recorded FXRP checkout, and a completed FDC proof for a fresh XRP Ledger Testnet payment.
 ```
 
 中文注释：这份 submission draft 可以直接复制到表单里。合约地址、交易哈希和 explorer 链接已经补好，录完视频后只需要把 `Demo video: TBD` 替换成真实视频链接。

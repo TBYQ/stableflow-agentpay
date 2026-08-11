@@ -8,9 +8,12 @@
     "test": "hardhat test",
     "deploy:coston2": "hardhat run scripts/deploy.js --network coston2",
     "record:local": "hardhat run scripts/record-demo-payment.js --network localhost",
-    "record:coston2": "hardhat run scripts/record-demo-payment.js --network coston2"
+    "record:coston2": "hardhat run scripts/record-demo-payment.js --network coston2",
+    "fdc:xrp": "hardhat run scripts/fdc-xrp-payment.js --network coston2"
   },
   "devDependencies": {
+    "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.52",
+    "@flarenetwork/flare-periphery-contracts": "^0.1.52",
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.7",

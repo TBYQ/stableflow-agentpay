@@ -95,7 +95,7 @@ Current product and engineering evidence includes:
 - FDC 验证外部链或互联网中的事件
 - FAssets / FXRP 让非智能合约资产参与 Flare 应用
 
-StableFlow 当前使用 Coston2 合约和 RPC 收据验证，基础是成立的。下一步最有价值的技术增强是真实 FTSO 报价，而不是继续增加不相关功能。
+StableFlow 使用 Coston2 合约、RPC 收据验证和真实 FTSOv2 的 FLR/USD 与 XRP/USD 报价。FTSOv2 合约地址通过 Flare Contract Registry 动态解析，报价中保留 feed ID 和更新时间。支付合约支持 C2FLR 与 FXRP 两条结算路线；FDC 合约用于验证 XRPL Testnet 的外部 XRP 支付证明。
 
 ### 4.2 A Complete Working Demo
 
@@ -157,7 +157,7 @@ StableFlow 的新意不在于发明转账，而在于把链上支付接入真实
 
 | Dimension | Heuristic Weight | StableFlow Status | Interpretation |
 | --- | ---: | --- | --- |
-| Prompt and Flare fit | 30% | Medium | Coston2 flow is real, but native Flare depth can improve |
+| Prompt and Flare fit | 30% | Medium-strong | Coston2 flow and real FTSOv2 price feed are both integrated |
 | Complete working demo | 25% | Strong | End-to-end payment and service unlock already work |
 | Product value and originality | 20% | Medium-strong | Clear merchant problem, but payment infrastructure is competitive |
 | Technical execution | 15% | Strong for an MVP | Tests, persistence, receipt verification, ledger, and webhooks exist |
@@ -171,6 +171,7 @@ StableFlow 的新意不在于发明转账，而在于把链上支付接入真实
 
 - 真实 Coston2 测试网交易，不是本地假数据流程
 - 已部署 Solidity 合约，并有可展示的交易哈希
+- 真实 FTSOv2 `FLR/USD` 报价，并通过 Flare Contract Registry 动态解析协议地址
 - 后端验证链上收据，不信任前端声明
 - 支付意图、账本、webhook、服务解锁形成闭环
 - 商户控制台把链上结果翻译成业务状态
@@ -178,8 +179,7 @@ StableFlow 的新意不在于发明转账，而在于把链上支付接入真实
 
 ### Weaknesses
 
-- 当前支付资产仍是原生 C2FLR，不是 FXRP 或 FAssets
-- 当前报价是 FTSO-style static adapter，不是真实 FTSO 数据
+- FXRP checkout and the FDC proof contract are implemented, but the final submission still needs a fresh, recorded FXRP payment and external XRP Ledger Testnet proof as public evidence.
 - JSON 文件持久化适合演示，不是生产数据库
 - webhook 没有生产级重试队列和失败恢复机制
 - 还没有稳定的公开托管 Demo
@@ -189,9 +189,9 @@ StableFlow 的新意不在于发明转账，而在于把链上支付接入真实
 
 ```text
 This is a working Coston2 MVP of a payment operations layer.
-It proves the full quote, payment confirmation, ledger, webhook, and service unlock flow.
-Future work extends it with real FTSO quotes, FXRP/FAssets settlement, hosted deployment,
-production SQL storage, and production webhook reliability.
+It proves the FTSOv2 quote, C2FLR or FXRP settlement, receipt confirmation, ledger, webhook, and service unlock flow.
+The FDC proof contract and operator workflow are included; a fresh XRPL Testnet payment must still be registered before claiming a completed FDC attestation.
+Future work extends it with hosted deployment, production SQL storage, and production webhook reliability.
 ```
 
 ## 7. What Not To Claim
@@ -199,8 +199,8 @@ production SQL storage, and production webhook reliability.
 Do not claim:
 
 - this is a full DeFi protocol
-- this already supports FXRP/FAssets payment settlement
-- the static quote adapter is a real FTSO integration
+- a completed FDC proof before `register` succeeds for a fresh XRP Ledger Testnet transaction
+- the FTSOv2 quote guarantees a fixed purchase price or production-grade settlement rate
 - this is a production merchant processor
 - this is an autonomous AI Agent
 - this handles mainnet funds
@@ -237,15 +237,14 @@ StableFlow AgentPay is infrastructure that can be used by AI agents, SaaS servic
 
 Prioritize in this order:
 
-1. Replace the static quote adapter with a real FTSO-backed quote adapter.
-2. Host the frontend and backend so judges can open a public demo.
-3. Record a concise two-to-three-minute demo video.
-4. Show webhook.site receiving the signed `payment.paid` event.
-5. Verify and link the deployed contract if the explorer supports it.
-6. Add one coherent FXRP/FAssets or FDC enhancement only if it strengthens the payment story.
-7. Add production SQL storage and a webhook retry queue after the hackathon MVP is secure.
+1. Host the frontend and backend so judges can open a public demo.
+2. Record a concise two-to-three-minute demo video that shows the FTSOv2 source, MetaMask payment, receipt verification, and webhook.
+3. Show webhook.site receiving the signed `payment.paid` event.
+4. Verify and link the deployed contract if the explorer supports it.
+5. Add one coherent FXRP/FAssets or FDC enhancement only if it strengthens the payment story.
+6. Add production SQL storage and a webhook retry queue after the hackathon MVP is secure.
 
-Do not add FTSO, FDC, and FAssets as three shallow labels. One real Flare-native integration that materially improves the payment workflow is more convincing than several incomplete integrations.
+The submission should demonstrate the linked story, not three labels: FTSOv2 creates a live C2FLR or FXRP quote, FXRP settles an interoperable asset checkout, and FDC verifies a separate external XRP Ledger payment onchain.
 
 ## 10. One-Sentence Takeaway
 

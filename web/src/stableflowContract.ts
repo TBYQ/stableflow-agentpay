@@ -1,11 +1,29 @@
 export const stableFlowPaymentABI = [
   {
     type: "function",
+    name: "fxrp",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }]
+  },
+  {
+    type: "function",
     name: "recordPayment",
     stateMutability: "payable",
     inputs: [
       { name: "paymentIntentId", type: "string" },
       { name: "serviceId", type: "string" }
+    ],
+    outputs: [{ name: "paymentIntentHash", type: "bytes32" }]
+  },
+  {
+    type: "function",
+    name: "recordFXRPPayment",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "paymentIntentId", type: "string" },
+      { name: "serviceId", type: "string" },
+      { name: "amount", type: "uint256" }
     ],
     outputs: [{ name: "paymentIntentHash", type: "bytes32" }]
   },
@@ -22,5 +40,18 @@ export const stableFlowPaymentABI = [
       { name: "chainId", type: "uint256", indexed: false },
       { name: "recordedAt", type: "uint256", indexed: false }
     ]
+  }
+] as const;
+
+export const erc20ApprovalABI = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    outputs: [{ name: "", type: "bool" }]
   }
 ] as const;

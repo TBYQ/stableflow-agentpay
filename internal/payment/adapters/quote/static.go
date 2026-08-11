@@ -12,17 +12,22 @@ import (
 )
 
 type StaticProvider struct {
-	priceUSD string
-	clock    application.Clock
+	flrPriceUSD  string
+	fxrpPriceUSD string
+	clock        application.Clock
 }
 
-func NewStaticProvider(priceUSD string, clock application.Clock) StaticProvider {
-	if strings.TrimSpace(priceUSD) == "" {
-		priceUSD = "10"
+func NewStaticProvider(flrPriceUSD, fxrpPriceUSD string, clock application.Clock) StaticProvider {
+	if strings.TrimSpace(flrPriceUSD) == "" {
+		flrPriceUSD = "10"
+	}
+	if strings.TrimSpace(fxrpPriceUSD) == "" {
+		fxrpPriceUSD = "2"
 	}
 	return StaticProvider{
-		priceUSD: strings.TrimSpace(priceUSD),
-		clock:    clock,
+		flrPriceUSD:  strings.TrimSpace(flrPriceUSD),
+		fxrpPriceUSD: strings.TrimSpace(fxrpPriceUSD),
+		clock:        clock,
 	}
 }
 
@@ -31,7 +36,11 @@ func (p StaticProvider) QuotePayment(ctx context.Context, request application.Qu
 	if asset == "" {
 		asset = "C2FLR"
 	}
-	if asset != "C2FLR" {
+	priceUSD, priceSource := p.flrPriceUSD, "demo-ftso-style-static-flr-usd"
+	if asset == "FXRP" {
+		priceUSD, priceSource = p.fxrpPriceUSD, "demo-ftso-style-static-xrp-usd"
+	}
+	if asset != "C2FLR" && asset != "FXRP" {
 		return nil, fmt.Errorf("%w: quote asset %s is not supported by the demo adapter", domain.ErrValidation, asset)
 	}
 
@@ -44,20 +53,21 @@ func (p StaticProvider) QuotePayment(ctx context.Context, request application.Qu
 	if !ok || usd.Sign() <= 0 {
 		return nil, fmt.Errorf("%w: usd amount must be positive", domain.ErrValidation)
 	}
-	price, ok := new(big.Rat).SetString(p.priceUSD)
+	price, ok := new(big.Rat).SetString(priceUSD)
 	if !ok || price.Sign() <= 0 {
-		return nil, fmt.Errorf("%w: demo C2FLR USD price must be positive", domain.ErrValidation)
+		return nil, fmt.Errorf("%w: demo %s USD price must be positive", domain.ErrValidation, asset)
 	}
 
 	amount := new(big.Rat).Quo(usd, price)
 	now := p.clock.Now()
 	return &application.PaymentQuote{
-		USDAmount:   formatRat(usd, 2),
-		Asset:       asset,
-		Amount:      formatRat(amount, 6),
-		PriceUSD:    formatRat(price, 4),
-		PriceSource: "demo-ftso-style-static",
-		ExpiresAt:   now.Add(2 * time.Minute),
+		USDAmount:      formatRat(usd, 2),
+		Asset:          asset,
+		Amount:         formatRat(amount, 6),
+		PriceUSD:       formatRat(price, 4),
+		PriceSource:    priceSource,
+		PriceUpdatedAt: now,
+		ExpiresAt:      now.Add(2 * time.Minute),
 	}, nil
 }
 
