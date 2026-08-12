@@ -36,15 +36,19 @@ const (
 
 type ServiceRequest struct {
 	ID          string               `json:"id"`
+	AgentID     string               `json:"agent_id"`
 	ServiceID   string               `json:"service_id"`
 	Description string               `json:"description"`
 	Status      ServiceRequestStatus `json:"status"`
 	CreatedAt   time.Time            `json:"created_at"`
 }
 
-func NewServiceRequest(id, serviceID, description string, now time.Time) (*ServiceRequest, error) {
+func NewServiceRequest(id, agentID, serviceID, description string, now time.Time) (*ServiceRequest, error) {
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: service request id is required", ErrValidation)
+	}
+	if strings.TrimSpace(agentID) == "" {
+		return nil, fmt.Errorf("%w: agent id is required", ErrValidation)
 	}
 	if strings.TrimSpace(serviceID) == "" {
 		return nil, fmt.Errorf("%w: service id is required", ErrValidation)
@@ -55,6 +59,7 @@ func NewServiceRequest(id, serviceID, description string, now time.Time) (*Servi
 
 	return &ServiceRequest{
 		ID:          strings.TrimSpace(id),
+		AgentID:     strings.TrimSpace(agentID),
 		ServiceID:   strings.TrimSpace(serviceID),
 		Description: strings.TrimSpace(description),
 		Status:      ServiceRequestCreated,

@@ -2,6 +2,7 @@ const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
 
 export type ServiceRequest = {
   id: string;
+  agent_id: string;
   service_id: string;
   description: string;
   status: string;
@@ -93,10 +94,16 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function createServiceRequest(input: {
+  agent_id: string;
   service_id: string;
   description: string;
 }) {
   return postJSON<ServiceRequest>("/v1/service-requests", input);
+}
+
+export async function listServiceRequests() {
+  const response = await getJSON<ListResponse<ServiceRequest>>("/v1/service-requests");
+  return response.items;
 }
 
 export async function createPaymentIntent(input: {

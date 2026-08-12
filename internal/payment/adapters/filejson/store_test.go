@@ -20,7 +20,7 @@ func TestStorePersistsPaymentIntents(t *testing.T) {
 	}
 
 	now := time.Date(2026, 8, 6, 10, 0, 0, 0, time.UTC)
-	request, err := domain.NewServiceRequest("sr_001", "premium-market-report", "Paid report", now)
+	request, err := domain.NewServiceRequest("sr_001", "market-research-agent", "premium-market-report", "Paid report", now)
 	if err != nil {
 		t.Fatalf("new service request: %v", err)
 	}

@@ -27,8 +27,9 @@ func (s LocalSigner) SendPaymentPaid(ctx context.Context, message application.Pa
 	}
 
 	payload := fmt.Sprintf(
-		"%s|%s|%s|%s|%s|%d|%s",
+		"%s|%s|%s|%s|%s|%s|%d|%s",
 		message.EventID,
+		message.AgentID,
 		message.PaymentIntentID,
 		message.ServiceRequestID,
 		message.Amount,

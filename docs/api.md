@@ -45,12 +45,25 @@ POST /v1/demo/seed
 POST /v1/service-requests
 ```
 
+An agent can create this request directly, before a person opens the checkout:
+
+```json
+{
+  "agent_id": "market-research-agent",
+  "service_id": "premium-market-report",
+  "description": "Need a verified market brief before submitting an allocation recommendation."
+}
+```
+
+`GET /v1/service-requests` lists the resulting agent requests. A selected request can have multiple payment intents over time, for example one C2FLR checkout and a later FXRP checkout, without overwriting the completed payment record.
+
 中文注释：第一步先创建服务请求。它表示“用户或 AI Agent 想买什么服务”，例如付费报告、API 调用权限或数据访问。
 
 Request:
 
 ```json
 {
+  "agent_id": "market-research-agent",
   "service_id": "premium-market-report",
   "description": "AI agent requests access to a paid market report"
 }
@@ -61,6 +74,7 @@ Response:
 ```json
 {
   "id": "sr_001",
+  "agent_id": "market-research-agent",
   "service_id": "premium-market-report",
   "description": "AI agent requests access to a paid market report",
   "status": "created",

@@ -52,12 +52,13 @@ func NewService(deps Dependencies) *Service {
 }
 
 type CreateServiceRequestCommand struct {
+	AgentID     string
 	ServiceID   string
 	Description string
 }
 
 func (s *Service) CreateServiceRequest(ctx context.Context, cmd CreateServiceRequestCommand) (*domain.ServiceRequest, error) {
-	request, err := domain.NewServiceRequest(s.ids.NewID("sr"), cmd.ServiceID, cmd.Description, s.clock.Now())
+	request, err := domain.NewServiceRequest(s.ids.NewID("sr"), cmd.AgentID, cmd.ServiceID, cmd.Description, s.clock.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +107,10 @@ func (s *Service) GetPaymentIntent(ctx context.Context, id string) (*domain.Paym
 
 func (s *Service) ListPaymentIntents(ctx context.Context) ([]domain.PaymentIntent, error) {
 	return s.paymentIntents.ListPaymentIntents(ctx)
+}
+
+func (s *Service) ListServiceRequests(ctx context.Context) ([]domain.ServiceRequest, error) {
+	return s.serviceRequests.ListServiceRequests(ctx)
 }
 
 type ConfirmPaymentCommand struct {
@@ -219,6 +224,10 @@ func (s *Service) ConfirmPayment(ctx context.Context, cmd ConfirmPaymentCommand)
 	if err := s.paymentIntents.SavePaymentIntent(ctx, intent); err != nil {
 		return nil, err
 	}
+	serviceRequest, err := s.serviceRequests.GetServiceRequest(ctx, intent.ServiceRequestID)
+	if err != nil {
+		return nil, err
+	}
 
 	ledgerEntry, err := s.ledger.FindLedgerEntryByPaymentIntent(ctx, intent.ID)
 	if err != nil {
@@ -243,6 +252,7 @@ func (s *Service) ConfirmPayment(ctx context.Context, cmd ConfirmPaymentCommand)
 	eventID := s.ids.NewID("evt")
 	delivery, webhookErr := s.webhookSender.SendPaymentPaid(ctx, PaymentPaidMessage{
 		EventID:          eventID,
+		AgentID:          serviceRequest.AgentID,
 		PaymentIntentID:  intent.ID,
 		ServiceRequestID: intent.ServiceRequestID,
 		Amount:           intent.Amount,
@@ -332,6 +342,7 @@ func (s *Service) SeedDemoData(ctx context.Context, cmd SeedDemoDataCommand) (*C
 	txHash := firstNonEmpty(cmd.TxHash, "0xseed000000000000000000000000000000000000000000000000000000000001")
 
 	request, err := s.CreateServiceRequest(ctx, CreateServiceRequestCommand{
+		AgentID:     "stableflow-demo-agent",
 		ServiceID:   serviceID,
 		Description: description,
 	})

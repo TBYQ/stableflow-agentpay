@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+func TestServiceRequestRequiresAgentID(t *testing.T) {
+	_, err := NewServiceRequest("sr_001", "", "premium-market-report", "Paid report", time.Now())
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+}
+
 func TestPaymentIntentConfirm(t *testing.T) {
 	now := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
 	intent, err := NewPaymentIntent("pi_001", "sr_001", "1.00", "C2FLR", 114, "0xcontract", "https://example.com/webhook", now)

@@ -34,6 +34,7 @@ func TestHTTPSenderSendsSignedPaymentPaidWebhook(t *testing.T) {
 	sender := NewHTTPSender("test-secret", server.Client())
 	delivery, err := sender.SendPaymentPaid(context.Background(), application.PaymentPaidMessage{
 		EventID:          "evt_001",
+		AgentID:          "market-research-agent",
 		PaymentIntentID:  "pi_001",
 		ServiceRequestID: "sr_001",
 		Amount:           "1.00",
@@ -54,6 +55,9 @@ func TestHTTPSenderSendsSignedPaymentPaidWebhook(t *testing.T) {
 	}
 	if gotPayload.ID != "evt_001" {
 		t.Fatalf("expected event id evt_001, got %s", gotPayload.ID)
+	}
+	if gotPayload.Data.AgentID != "market-research-agent" {
+		t.Fatalf("expected agent id market-research-agent, got %s", gotPayload.Data.AgentID)
 	}
 	if gotPayload.Data.PaymentIntentID != "pi_001" {
 		t.Fatalf("expected payment intent pi_001, got %s", gotPayload.Data.PaymentIntentID)

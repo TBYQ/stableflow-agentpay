@@ -42,6 +42,7 @@ func (s HTTPSender) SendPaymentPaid(ctx context.Context, message application.Pay
 		Type:      "payment.paid",
 		CreatedAt: message.CreatedAt.UTC().Format(time.RFC3339),
 		Data: paymentPaidData{
+			AgentID:          message.AgentID,
 			PaymentIntentID:  message.PaymentIntentID,
 			ServiceRequestID: message.ServiceRequestID,
 			Amount:           message.Amount,
@@ -109,6 +110,7 @@ type paymentPaidPayload struct {
 }
 
 type paymentPaidData struct {
+	AgentID          string `json:"agent_id"`
 	PaymentIntentID  string `json:"payment_intent_id"`
 	ServiceRequestID string `json:"service_request_id"`
 	Amount           string `json:"amount"`

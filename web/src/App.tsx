@@ -1,9 +1,8 @@
 import {
-  ArrowUpRight,
+  ArrowRight,
+  Bot,
   Check,
   CheckCircle2,
-  ChevronDown,
-  CircleDollarSign,
   ExternalLink,
   FileText,
   LockKeyhole,
@@ -11,7 +10,6 @@ import {
   ReceiptText,
   RefreshCw,
   Send,
-  Settings2,
   ShieldCheck,
   Sparkles,
   Wallet,
@@ -28,11 +26,13 @@ import {
   LedgerEntry,
   listLedgerEntries,
   listPaymentIntents,
+  listServiceRequests,
   listWebhookEvents,
   PaymentIntent,
   PaymentQuote,
   quotePayment,
   seedDemoData,
+  ServiceRequest,
   WebhookEvent
 } from "./api";
 import { coston2, requestCoston2Network } from "./flare";
@@ -40,10 +40,11 @@ import { erc20ApprovalABI, stableFlowPaymentABI } from "./stableflowContract";
 
 const defaultContract = import.meta.env.VITE_STABLEFLOW_PAYMENT_CONTRACT || "";
 
-type DataView = "payments" | "ledger" | "webhooks";
+type DataView = "requests" | "payments" | "ledger" | "webhooks";
 type PaymentAsset = "C2FLR" | "FXRP";
 
 export function App() {
+  const [agentID, setAgentID] = useState("market-research-agent");
   const [serviceID, setServiceID] = useState("premium-market-report");
   const [description, setDescription] = useState("Private market signals, execution notes, and a concise operator brief.");
   const [usdAmount, setUSDAmount] = useState("0.01");
@@ -52,6 +53,7 @@ export function App() {
   const [webhookURL, setWebhookURL] = useState("https://webhook.site/your-demo-url");
   const [contractAddress, setContractAddress] = useState(defaultContract);
   const [walletAddress, setWalletAddress] = useState("");
+  const [serviceRequest, setServiceRequest] = useState<ServiceRequest | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
   const [ledgerEntry, setLedgerEntry] = useState<LedgerEntry | null>(null);
   const [webhookEvent, setWebhookEvent] = useState<WebhookEvent | null>(null);
@@ -59,14 +61,14 @@ export function App() {
   const [txHash, setTxHash] = useState("");
   const [summary, setSummary] = useState("");
   const [events, setEvents] = useState<string[]>([]);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [paymentIntents, setPaymentIntents] = useState<PaymentIntent[]>([]);
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [useChainVerification, setUseChainVerification] = useState(true);
-  const [activeView, setActiveView] = useState<DataView>("payments");
-  const [showDetails, setShowDetails] = useState(false);
+  const [activeView, setActiveView] = useState<DataView>("requests");
 
   const explorerTxURL = useMemo(() => {
     const hash = txHash || paymentIntent?.tx_hash;
@@ -94,11 +96,13 @@ export function App() {
   async function loadDashboard() {
     setIsLoadingDashboard(true);
     try {
-      const [intents, ledger, webhooks] = await Promise.all([
+      const [requests, intents, ledger, webhooks] = await Promise.all([
+        listServiceRequests(),
         listPaymentIntents(),
         listLedgerEntries(),
         listWebhookEvents()
       ]);
+      setServiceRequests(requests);
       setPaymentIntents(intents);
       setLedgerEntries(ledger);
       setWebhookEvents(webhooks);
@@ -136,9 +140,27 @@ export function App() {
     }
   }
 
+  function resetCheckoutState() {
+    setPaymentIntent(null);
+    setLedgerEntry(null);
+    setWebhookEvent(null);
+    setSummary("");
+    setTxHash("");
+  }
+
+  async function handleCreateAgentRequest() {
+    await runStep("Creating agent request", async () => {
+      const request = await createServiceRequest({ agent_id: agentID, service_id: serviceID, description });
+      setServiceRequest(request);
+      resetCheckoutState();
+      setActiveView("requests");
+    });
+  }
+
   async function handleCreateIntent() {
     await runStep("Creating secure checkout", async () => {
-      const serviceRequest = await createServiceRequest({ service_id: serviceID, description });
+      if (!serviceRequest) throw new Error("Create an agent request first.");
+      if (!quote || quote.asset !== paymentAsset) throw new Error("Wait for the live quote for the selected asset.");
       const intent = await createPaymentIntent({
         service_request_id: serviceRequest.id,
         amount,
@@ -152,7 +174,26 @@ export function App() {
       setWebhookEvent(null);
       setSummary("");
       setTxHash("");
+      setActiveView("payments");
     });
+  }
+
+  function handlePaymentAssetChange(asset: PaymentAsset) {
+    if (asset === paymentAsset) return;
+    setPaymentAsset(asset);
+    setQuote(null);
+    setAmount("");
+    resetCheckoutState();
+    setEvents((current) => [`${asset} selected for a new checkout`, ...current]);
+  }
+
+  function handleUseServiceRequest(request: ServiceRequest) {
+    setServiceRequest(request);
+    setAgentID(request.agent_id || "market-research-agent");
+    setServiceID(request.service_id);
+    setDescription(request.description);
+    resetCheckoutState();
+    setEvents((current) => [`Agent request selected: ${shortHash(request.id)}`, ...current]);
   }
 
   async function handleConnectWallet() {
@@ -250,25 +291,34 @@ export function App() {
       setWebhookEvent(response.webhook_event);
       setTxHash(response.payment_intent.tx_hash);
       setSummary(response.summary);
+      const requests = await listServiceRequests();
+      setServiceRequests(requests);
+      setServiceRequest(requests.find((request) => request.id === response.payment_intent.service_request_id) || null);
+      setActiveView("payments");
     });
   }
 
   async function handlePrimaryAction() {
+    if (!serviceRequest) return handleCreateAgentRequest();
     if (!paymentIntent) return handleCreateIntent();
     if (!walletAddress) return handleConnectWallet();
     if (!txHash) return handlePayOnFlare();
     if (!isPaid) return handleConfirmBackend();
+    resetCheckoutState();
+    setEvents((current) => ["Ready for a new checkout on this agent request", ...current]);
   }
 
-  const primaryAction = !paymentIntent
-    ? { label: "Create secure checkout", icon: <ReceiptText size={18} /> }
+  const primaryAction = !serviceRequest
+    ? { label: "Create agent request", icon: <Bot size={18} /> }
+    : !paymentIntent
+    ? { label: `Create ${paymentAsset} checkout`, icon: <ReceiptText size={18} /> }
     : !walletAddress
       ? { label: "Connect MetaMask", icon: <Wallet size={18} /> }
       : !txHash
         ? { label: paymentAsset === "FXRP" ? `Approve & pay ${quoteValue}` : `Pay ${quoteValue}`, icon: <Send size={18} /> }
         : !isPaid
           ? { label: "Verify payment", icon: <ShieldCheck size={18} /> }
-          : { label: "Payment complete", icon: <CheckCircle2 size={18} /> };
+          : { label: "Start another checkout", icon: <ReceiptText size={18} /> };
 
   return (
     <div className="checkout-page">
@@ -284,45 +334,44 @@ export function App() {
       </header>
 
       <main className="checkout-shell" id="checkout">
-        <section className="service-stage" aria-labelledby="service-heading">
-          <div className="stage-eyebrow"><Sparkles size={14} /> Agent commerce request</div>
-          <h1 id="service-heading">Premium Market<br />Intelligence</h1>
-          <p className="stage-intro">A structured brief for an agent that needs market context before it acts.</p>
-
-          <div className="report-art" aria-label="Premium market intelligence report preview">
-            <div className="report-art-top"><span>STABLEFLOW</span><span>ISSUE 01</span></div>
-            <div className="report-art-body">
-              <span>LIVE</span>
-              <strong>MARKET<br />SIGNALS</strong>
-              <div className="signal-bars"><i /><i /><i /><i /><i /></div>
-            </div>
-            <div className="report-art-footer"><span>Flare verified data</span><span>01</span></div>
+        <section className="service-hero" aria-labelledby="service-heading">
+          <div>
+            <div className="stage-eyebrow"><Sparkles size={14} /> Agent commerce request</div>
+            <h1 id="service-heading">Premium Market Intelligence</h1>
+            <p className="stage-intro">A paid research capability an agent can request, settle on Flare, and unlock only after receipt verification.</p>
           </div>
-
-          <div className="service-inclusions">
-            <p>Included in this request</p>
-            <ul>
-              <li><Check size={16} /> Live FTSOv2 reference price</li>
-              <li><Check size={16} /> Reconciled onchain payment receipt</li>
-              <li><Check size={16} /> Signed delivery webhook</li>
-            </ul>
+          <div className="hero-product">
+            <div className="mini-report-art"><span>LIVE</span><strong>MARKET<br />SIGNALS</strong></div>
+            <div><span>Service capability</span><strong>Verified market brief</strong><small>FTSO reference pricing, onchain settlement, and a signed delivery event.</small></div>
           </div>
         </section>
 
-        <section className="checkout-sheet" aria-labelledby="checkout-heading">
+        <section className="workflow-grid" aria-label="Agent request and settlement workflow">
+          <section className="workflow-card request-card" aria-labelledby="request-heading">
+            <div className="workflow-card-heading"><div><span className="sheet-kicker">Step 1</span><h2 id="request-heading">Request from an agent</h2></div><span className="step-icon"><Bot size={18} /></span></div>
+            <p className="workflow-copy">The agent defines what it needs. StableFlow persists that request before a checkout exists.</p>
+            <div className="request-fields">
+              <label>Agent ID<input value={agentID} onChange={(event) => setAgentID(event.target.value)} placeholder="market-research-agent" /></label>
+              <label>Service ID<input value={serviceID} onChange={(event) => setServiceID(event.target.value)} /></label>
+              <label className="wide-field">Request brief<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} /></label>
+            </div>
+            <button className="secondary-action" type="button" disabled={isBusy} onClick={() => void handleCreateAgentRequest()}><Bot size={16} />{serviceRequest ? "Create another request" : "Submit agent request"}</button>
+            <div className={`request-state ${serviceRequest ? "ready" : ""}`}><FileText size={16} /><div><span>Active request</span><strong>{serviceRequest ? `${shortHash(serviceRequest.id)} - ${serviceRequest.status}` : "No request created yet"}</strong></div></div>
+          </section>
+
+          <section className="workflow-card checkout-sheet" aria-labelledby="checkout-heading">
           <div className="sheet-header">
             <div>
-              <span className="sheet-kicker">Secure checkout</span>
-              <h2 id="checkout-heading">Review and pay</h2>
+              <span className="sheet-kicker">Step 2</span>
+              <h2 id="checkout-heading">Settle and verify</h2>
             </div>
             <div className={`feed-chip ${isLiveFTSO ? "is-live" : ""}`}><Radio size={14} />{isLiveFTSO ? "Live FTSO" : "Syncing"}</div>
           </div>
 
           <div className="checkout-product">
-            <div className="mini-report-art"><span>LIVE</span><strong>MARKET<br />SIGNALS</strong></div>
             <div className="product-copy">
-              <strong>Premium market report</strong>
-              <span>{serviceID}</span>
+              <strong>{serviceRequest ? "Agent request ready for settlement" : "Waiting for an agent request"}</strong>
+              <span>{serviceRequest ? shortHash(serviceRequest.id) : "Submit Step 1 to continue"}</span>
               <small>{description}</small>
             </div>
             <div className="product-price"><span>Request value</span><strong>${usdAmount || "0.00"}</strong></div>
@@ -331,8 +380,8 @@ export function App() {
           <div className="asset-rail" role="group" aria-label="Settlement asset">
             <div><span>Pay with</span><strong>{paymentAsset === "FXRP" ? "FXRP on Flare" : "C2FLR on Flare"}</strong></div>
             <div className="asset-tabs">
-              <button className={paymentAsset === "C2FLR" ? "selected" : ""} type="button" disabled={isBusy} onClick={() => setPaymentAsset("C2FLR")}>C2FLR</button>
-              <button className={paymentAsset === "FXRP" ? "selected" : ""} type="button" disabled={isBusy} onClick={() => setPaymentAsset("FXRP")}>FXRP</button>
+              <button className={paymentAsset === "C2FLR" ? "selected" : ""} type="button" disabled={isBusy} onClick={() => handlePaymentAssetChange("C2FLR")}>C2FLR</button>
+              <button className={paymentAsset === "FXRP" ? "selected" : ""} type="button" disabled={isBusy} onClick={() => handlePaymentAssetChange("FXRP")}>FXRP</button>
             </div>
           </div>
 
@@ -342,7 +391,8 @@ export function App() {
           </div>
 
           <div className="receipt-lines">
-            <div><span>Service request</span><strong>{paymentIntent?.id || "Created after checkout"}</strong></div>
+            <div><span>Service request</span><strong>{serviceRequest ? shortHash(serviceRequest.id) : "Create in Step 1"}</strong></div>
+            <div><span>Payment intent</span><strong>{paymentIntent ? shortHash(paymentIntent.id) : "Created after checkout"}</strong></div>
             <div><span>Network fee</span><strong>Shown in wallet</strong></div>
             <div className="receipt-total"><span>Total due</span><strong>{quoteValue}</strong></div>
           </div>
@@ -353,14 +403,14 @@ export function App() {
             {walletAddress && <span className="connected-mark"><Check size={15} /></span>}
           </div>
 
-          <button className="pay-button" type="button" disabled={isBusy || isPaid} onClick={() => void handlePrimaryAction()}>
+          <button className="pay-button" type="button" disabled={isBusy} onClick={() => void handlePrimaryAction()}>
             {primaryAction.icon}{primaryAction.label}
           </button>
-          <p className="checkout-note">{paymentAsset === "FXRP" && !txHash ? "FXRP uses an approval, then a settlement confirmation." : "The payment receipt is verified before access is unlocked."}</p>
+          <p className="checkout-note">{!serviceRequest ? "Create the agent request before generating a checkout." : paymentAsset === "FXRP" && !txHash ? "FXRP uses an approval, then a settlement confirmation." : "The payment receipt is verified before access is unlocked."}</p>
 
           <div className="checkout-progress" aria-label="Payment progress">
-            <ProgressStep complete={Boolean(quote)} active={!paymentIntent} label="Quote" />
-            <ProgressStep complete={Boolean(paymentIntent)} active={Boolean(paymentIntent) && !txHash} label="Checkout" />
+            <ProgressStep complete={Boolean(serviceRequest)} active={!serviceRequest} label="Request" />
+            <ProgressStep complete={Boolean(paymentIntent)} active={Boolean(serviceRequest) && !paymentIntent} label="Checkout" />
             <ProgressStep complete={Boolean(txHash)} active={Boolean(txHash) && !isPaid} label="Onchain" />
             <ProgressStep complete={isPaid} active={isPaid} label="Verified" />
           </div>
@@ -371,19 +421,19 @@ export function App() {
             {explorerTxURL && <a href={explorerTxURL} target="_blank" rel="noreferrer" title="Open transaction in Coston2 Explorer"><ExternalLink size={16} /></a>}
           </div>
         </section>
+        </section>
       </main>
 
       <section className="proof-panel" aria-labelledby="proof-heading">
-        <div className="proof-heading"><div><span>Payment proof</span><h2 id="proof-heading">Everything behind this checkout</h2></div><button className="details-toggle" type="button" onClick={() => setShowDetails((current) => !current)} aria-expanded={showDetails}><Settings2 size={16} />{showDetails ? "Hide details" : "View details"}<ChevronDown size={15} className={showDetails ? "rotated" : ""} /></button></div>
+        <div className="proof-heading"><div><span>Operations log</span><h2 id="proof-heading">Request, settlement, and delivery records</h2></div><button className="quiet-button" type="button" disabled={isBusy || isLoadingDashboard} onClick={() => void loadDashboard()}><RefreshCw size={16} />Refresh records</button></div>
         <div className="proof-summary">
-          <ProofFact icon={<CircleDollarSign size={18} />} label="FTSO feed" value={quote?.price_source || "Connecting"} detail={quote ? `${feedAsset}/USD · ${shortHash(quote.feed_id)}` : "Live price source"} />
+          <ProofFact icon={<Bot size={18} />} label="Agent request" value={serviceRequest?.status || "Ready"} detail={serviceRequest ? `${agentID} - ${shortHash(serviceRequest.id)}` : "Submit a request to begin"} />
           <ProofFact icon={<ReceiptText size={18} />} label="Settlement" value={paymentIntent?.status || "Ready to create"} detail={paymentIntent ? shortHash(paymentIntent.id) : `${paymentAsset} checkout`} />
           <ProofFact icon={<Webhook size={18} />} label="Webhook" value={latestWebhook?.status || "Waiting"} detail={latestWebhook?.delivery_url || "Destination chosen at checkout"} />
         </div>
 
-        {showDetails && <div className="proof-details">
+        <div className="proof-details">
           <div className="configuration-grid">
-            <label>Service ID<input value={serviceID} onChange={(event) => setServiceID(event.target.value)} /></label>
             <label>USD request value<input value={usdAmount} onChange={(event) => setUSDAmount(event.target.value)} inputMode="decimal" /></label>
             <label className="wide-field">Service description<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={2} /></label>
             <label>Webhook destination<input value={webhookURL} onChange={(event) => setWebhookURL(event.target.value)} /></label>
@@ -394,20 +444,21 @@ export function App() {
 
           <div className="detail-actions">
             <button className="quiet-button" type="button" disabled={isBusy} onClick={() => void handleSeedDemoData()}><Sparkles size={16} />Load completed demo</button>
-            <button className="quiet-button" type="button" disabled={isBusy || isLoadingDashboard} onClick={() => void loadDashboard()}><RefreshCw size={16} />Refresh records</button>
           </div>
 
           <div className="proof-tabs" role="tablist" aria-label="Payment proof records">
+            <TabButton active={activeView === "requests"} label="Requests" onClick={() => setActiveView("requests")} />
             <TabButton active={activeView === "payments"} label="Payments" onClick={() => setActiveView("payments")} />
             <TabButton active={activeView === "ledger"} label="Ledger" onClick={() => setActiveView("ledger")} />
             <TabButton active={activeView === "webhooks"} label="Webhooks" onClick={() => setActiveView("webhooks")} />
           </div>
           <div className="table-wrap">
+            {activeView === "requests" && <ServiceRequestTable requests={serviceRequests} onUse={handleUseServiceRequest} />}
             {activeView === "payments" && <PaymentIntentTable intents={paymentIntents} />}
             {activeView === "ledger" && <LedgerTable entries={ledgerEntries} />}
             {activeView === "webhooks" && <WebhookTable events={webhookEvents} />}
           </div>
-        </div>}
+        </div>
       </section>
 
       <footer className="checkout-footer"><ShieldCheck size={15} />Coston2 testnet · Onchain receipts are checked by StableFlow before delivery.</footer>
@@ -425,6 +476,10 @@ function ProofFact({ icon, label, value, detail }: { icon: ReactNode; label: str
 
 function TabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return <button className={active ? "active" : ""} role="tab" aria-selected={active} onClick={onClick}>{label}</button>;
+}
+
+function ServiceRequestTable({ requests, onUse }: { requests: ServiceRequest[]; onUse: (request: ServiceRequest) => void }) {
+  return <table><thead><tr><th>Agent</th><th>Service request</th><th>Service</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody>{requests.length === 0 ? <EmptyRow colSpan={6} label="No agent requests yet" /> : requests.map((request) => <tr key={request.id}><td>{request.agent_id || "legacy-request"}</td><td><strong>{request.id}</strong></td><td>{request.service_id}</td><td><StatusPill value={request.status} /></td><td>{formatDate(request.created_at)}</td><td><button className="table-action" type="button" onClick={() => onUse(request)}>Use <ArrowRight size={13} /></button></td></tr>)}</tbody></table>;
 }
 
 function PaymentIntentTable({ intents }: { intents: PaymentIntent[] }) {

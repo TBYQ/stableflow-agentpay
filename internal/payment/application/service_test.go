@@ -64,6 +64,7 @@ func TestPaymentConfirmationFlowCreatesLedgerWebhookAndSummary(t *testing.T) {
 	service, _ := newTestService()
 
 	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		AgentID:     "market-research-agent",
 		ServiceID:   "premium-market-report",
 		Description: "AI agent requests access to a paid market report",
 	})
@@ -139,6 +140,31 @@ func TestCreatePaymentIntentRequiresExistingServiceRequest(t *testing.T) {
 	}
 }
 
+func TestCreateServiceRequestPersistsAgentIdentity(t *testing.T) {
+	ctx := context.Background()
+	service, _ := newTestService()
+
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		AgentID:     "market-research-agent",
+		ServiceID:   "premium-market-report",
+		Description: "Need a verified market brief before placing an order.",
+	})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+	if request.AgentID != "market-research-agent" {
+		t.Fatalf("expected agent identity to be stored, got %q", request.AgentID)
+	}
+
+	requests, err := service.ListServiceRequests(ctx)
+	if err != nil {
+		t.Fatalf("list service requests: %v", err)
+	}
+	if len(requests) != 1 || requests[0].ID != request.ID {
+		t.Fatalf("expected the created service request to be listed, got %#v", requests)
+	}
+}
+
 func TestULIDGeneratorCreatesPrefixedNonSequentialIDs(t *testing.T) {
 	ids := application.NewULIDGenerator()
 	pattern := regexp.MustCompile(`^pi_[0-9A-HJKMNP-TV-Z]{26}$`)
@@ -178,6 +204,7 @@ func TestConfirmPaymentFromChainUsesVerifiedPaymentIntentID(t *testing.T) {
 	})
 
 	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		AgentID:     "market-research-agent",
 		ServiceID:   "premium-market-report",
 		Description: "AI agent requests access to a paid market report",
 	})
@@ -218,6 +245,7 @@ func TestConfirmPaymentFromChainRejectsMismatchedPaymentIntentID(t *testing.T) {
 	})
 
 	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		AgentID:     "market-research-agent",
 		ServiceID:   "premium-market-report",
 		Description: "AI agent requests access to a paid market report",
 	})
@@ -287,7 +315,7 @@ func TestConfirmPaymentFromChainRejectsMismatchedFXRPAmount(t *testing.T) {
 		asset:           "FXRP",
 		amountWei:       "999",
 	})
-	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{ServiceID: "premium-market-report", Description: "FXRP checkout"})
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{AgentID: "market-research-agent", ServiceID: "premium-market-report", Description: "FXRP checkout"})
 	if err != nil {
 		t.Fatalf("create service request: %v", err)
 	}
@@ -310,7 +338,7 @@ func TestConfirmPaymentFromChainAcceptsSixDecimalFXRPAmount(t *testing.T) {
 		asset:           "FXRP",
 		amountWei:       "9893",
 	})
-	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{ServiceID: "premium-market-report", Description: "FXRP checkout"})
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{AgentID: "market-research-agent", ServiceID: "premium-market-report", Description: "FXRP checkout"})
 	if err != nil {
 		t.Fatalf("create service request: %v", err)
 	}

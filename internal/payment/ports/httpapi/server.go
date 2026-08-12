@@ -31,11 +31,22 @@ func (s *Server) Routes() http.Handler {
 }
 
 type createServiceRequestBody struct {
+	AgentID     string `json:"agent_id"`
 	ServiceID   string `json:"service_id"`
 	Description string `json:"description"`
 }
 
 func (s *Server) handleServiceRequests(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		requests, err := s.service.ListServiceRequests(r.Context())
+		if err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": requests})
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -48,6 +59,7 @@ func (s *Server) handleServiceRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request, err := s.service.CreateServiceRequest(r.Context(), application.CreateServiceRequestCommand{
+		AgentID:     body.AgentID,
 		ServiceID:   body.ServiceID,
 		Description: body.Description,
 	})

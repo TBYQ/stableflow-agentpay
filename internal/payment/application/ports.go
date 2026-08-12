@@ -43,6 +43,7 @@ type WebhookEventRepository interface {
 
 type PaymentPaidMessage struct {
 	EventID          string
+	AgentID          string
 	PaymentIntentID  string
 	ServiceRequestID string
 	Amount           string
