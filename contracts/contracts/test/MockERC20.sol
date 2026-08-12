@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 contract MockERC20 {
-    string public constant name = "Mock FXRP";
-    string public constant symbol = "FXRP";
-    uint8 public constant decimals = 18;
+    string public constant name = "FXRP Test Token";
+    string public constant symbol = "FTestXRP";
+    uint8 public constant decimals = 6;
 
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;

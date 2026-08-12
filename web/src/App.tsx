@@ -183,7 +183,12 @@ export function App() {
           abi: stableFlowPaymentABI,
           functionName: "fxrp"
         });
-        const tokenAmount = parseUnits(amount, 18);
+        const fxrpDecimals = await publicClient.readContract({
+          address: fxrpAddress,
+          abi: erc20ApprovalABI,
+          functionName: "decimals"
+        });
+        const tokenAmount = parseUnits(amount, fxrpDecimals);
         const approvalHash = await walletClient.writeContract({
           account,
           address: fxrpAddress,
@@ -191,7 +196,7 @@ export function App() {
           functionName: "approve",
           args: [contractAddress as `0x${string}`, tokenAmount]
         });
-        setEvents((current) => [`FXRP approval submitted: ${shortHash(approvalHash)}`, ...current]);
+        setEvents((current) => [`FXRP approval submitted (${fxrpDecimals} decimals): ${shortHash(approvalHash)}`, ...current]);
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
         hash = await walletClient.writeContract({
           account,

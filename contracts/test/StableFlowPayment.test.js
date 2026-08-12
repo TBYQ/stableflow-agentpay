@@ -43,7 +43,7 @@ describe("StableFlowPayment", function () {
 
   it("records and settles an approved FXRP payment", async function () {
     const { contract, fxrp, payer, merchant } = await deployFixture();
-    const amount = ethers.parseUnits("2.5", 18);
+    const amount = ethers.parseUnits("2.5", 6);
     await fxrp.mint(payer.address, amount);
     await fxrp.connect(payer).approve(await contract.getAddress(), amount);
 

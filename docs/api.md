@@ -265,7 +265,7 @@ POST /v1/payment-intents/{id}/chain-transaction
 
 This endpoint verifies the transaction receipt through Flare Coston2 JSON-RPC and parses the `PaymentRecorded` event emitted by `StableFlowPayment`.
 
-The backend confirms the payment only if the event matches the backend payment intent id, service id, selected asset, quoted 18-decimal amount, and Coston2 chain id.
+The backend confirms the payment only if the event matches the backend payment intent id, service id, selected asset, quoted amount in that asset's smallest unit (18 decimals for C2FLR and 6 for the current Coston2 FXRP token), and Coston2 chain id.
 
 中文注释：这是最终 demo 更推荐使用的接口。它会查 Flare Coston2 的交易收据，解析合约事件，并确认事件里的 paymentIntentId 确实等于后端这张 payment intent 的 id。
 

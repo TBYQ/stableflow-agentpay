@@ -300,3 +300,29 @@ func TestConfirmPaymentFromChainRejectsMismatchedFXRPAmount(t *testing.T) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
 }
+
+func TestConfirmPaymentFromChainAcceptsSixDecimalFXRPAmount(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, fakeChainVerifier{
+		paymentIntentID: "pi_001",
+		txHash:          "0xabc123",
+		asset:           "FXRP",
+		amountWei:       "9893",
+	})
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{ServiceID: "premium-market-report", Description: "FXRP checkout"})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{ServiceRequestID: request.ID, Amount: "0.009893", Asset: "FXRP", ChainID: 114})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+	result, err := service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{PaymentIntentID: intent.ID, TxHash: "0xabc123"})
+	if err != nil {
+		t.Fatalf("confirm FXRP payment from chain: %v", err)
+	}
+	if result.PaymentIntent.Status != domain.PaymentPaid {
+		t.Fatalf("expected paid status, got %s", result.PaymentIntent.Status)
+	}
+}

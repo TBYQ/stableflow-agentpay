@@ -175,22 +175,35 @@ func (s *Service) ConfirmPaymentFromChain(ctx context.Context, cmd ConfirmPaymen
 	})
 }
 
-// paymentAmountBaseUnits converts the quoted decimal amount into the 18-decimal
-// representation emitted by both native C2FLR and the Coston2 FXRP ERC-20.
+// paymentAmountBaseUnits converts the quoted decimal amount into the smallest
+// unit emitted by the selected Coston2 payment asset.
 func paymentAmountBaseUnits(amount, asset string) (*big.Int, error) {
-	if !strings.EqualFold(asset, "C2FLR") && !strings.EqualFold(asset, "FXRP") {
-		return nil, fmt.Errorf("%w: unsupported on-chain payment asset %s", domain.ErrValidation, asset)
+	decimals, err := paymentAssetDecimals(asset)
+	if err != nil {
+		return nil, err
 	}
 	decimalAmount, ok := new(big.Rat).SetString(strings.TrimSpace(amount))
 	if !ok || decimalAmount.Sign() <= 0 {
 		return nil, fmt.Errorf("%w: payment amount must be a positive decimal", domain.ErrValidation)
 	}
-	baseUnitScale := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	baseUnitScale := new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil)
 	baseUnits := new(big.Rat).Mul(decimalAmount, new(big.Rat).SetInt(baseUnitScale))
 	if !baseUnits.IsInt() {
-		return nil, fmt.Errorf("%w: payment amount has more than 18 decimal places", domain.ErrValidation)
+		return nil, fmt.Errorf("%w: payment amount has more than %d decimal places", domain.ErrValidation, decimals)
 	}
 	return baseUnits.Num(), nil
+}
+
+func paymentAssetDecimals(asset string) (int64, error) {
+	switch {
+	case strings.EqualFold(asset, "C2FLR"):
+		return 18, nil
+	case strings.EqualFold(asset, "FXRP"):
+		// Coston2's current FTestXRP contract reports six decimal places.
+		return 6, nil
+	default:
+		return 0, fmt.Errorf("%w: unsupported on-chain payment asset %s", domain.ErrValidation, asset)
+	}
 }
 
 func (s *Service) ConfirmPayment(ctx context.Context, cmd ConfirmPaymentCommand) (*ConfirmPaymentResult, error) {

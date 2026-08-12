@@ -46,6 +46,13 @@ export const stableFlowPaymentABI = [
 export const erc20ApprovalABI = [
   {
     type: "function",
+    name: "decimals",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }]
+  },
+  {
+    type: "function",
     name: "approve",
     stateMutability: "nonpayable",
     inputs: [

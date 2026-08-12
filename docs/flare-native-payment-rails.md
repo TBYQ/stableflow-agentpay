@@ -53,6 +53,8 @@ For the deployed Coston2 version in this repository, the payment contract is `0x
 
 The deployment script resolves `AssetManagerFXRP` and then `fAsset()` through the Flare Contract Registry; it does not hardcode an FXRP token address.
 
+On Coston2, MetaMask currently identifies this token as `FTestXRP` with `6` decimals. Keep the detected value instead of entering `18`: the checkout reads the token's `decimals()` value before approval, and backend receipt verification uses the same six-decimal precision.
+
 ## 4. FDC-backed external XRP proof
 
 FDC is a different rail from an FXRP checkout. It validates a payment that happened on the XRP Ledger and stores the verified result on Coston2.
