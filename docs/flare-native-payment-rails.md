@@ -32,14 +32,15 @@ The quote API returns the feed ID, price source, feed timestamp, and short expir
 
 ## 3. FXRP preparation on Coston2
 
-1. Open the official Coston2 faucet and request both C2FLR and FXRP for the dedicated test wallet.
-2. Deploy the current contracts from `contracts/`:
+1. Open the official Coston2 faucet and request both C2FLR and FXRP for the dedicated payer test wallet.
+2. Create or select a second Coston2 test wallet as the merchant recipient. Before deployment, set `STABLEFLOW_SETTLEMENT_RECIPIENT` in `contracts/.env` to this second address. It must not be the same wallet as `COSTON2_PRIVATE_KEY`: FTestXRP rejects transfers where the payer and recipient are identical.
+3. Deploy the current contracts from `contracts/`:
 
 ```powershell
 npm run deploy:coston2
 ```
 
-3. Copy the displayed `StableFlowPayment` address into both local environments:
+4. Copy the displayed `StableFlowPayment` address into both local environments:
 
 ```text
 STABLEFLOW_PAYMENT_CONTRACT=0x_deployed_contract
@@ -48,8 +49,8 @@ VITE_STABLEFLOW_PAYMENT_CONTRACT=0x_deployed_contract
 
 For the deployed Coston2 version in this repository, the payment contract is `0x03236dab5EA8F10b5504940f3750b36d21e6DB7B`.
 
-4. Restart the Go API and Vite dev server after changing either local `.env` file.
-5. In the console, choose `FXRP`, create a checkout, connect MetaMask, and approve the FXRP amount when requested. MetaMask then opens a second confirmation for the settlement transaction.
+5. Restart the Go API and Vite dev server after changing either local `.env` file.
+6. In the console, choose `FXRP`, create a checkout, connect MetaMask, and approve the FXRP amount when requested. MetaMask then opens a second confirmation for the settlement transaction.
 
 The deployment script resolves `AssetManagerFXRP` and then `fAsset()` through the Flare Contract Registry; it does not hardcode an FXRP token address.
 

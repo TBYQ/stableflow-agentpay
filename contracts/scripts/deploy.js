@@ -24,7 +24,17 @@ async function main() {
     hre.ethers.provider
   );
   const fxrpAddress = await assetManager.fAsset();
-  const settlementRecipient = process.env.STABLEFLOW_SETTLEMENT_RECIPIENT || deployer.address;
+  const settlementRecipient = process.env.STABLEFLOW_SETTLEMENT_RECIPIENT;
+  if (!settlementRecipient) {
+    throw new Error(
+      "Set STABLEFLOW_SETTLEMENT_RECIPIENT in contracts/.env to a dedicated merchant test wallet before deploying."
+    );
+  }
+  if (settlementRecipient.toLowerCase() === deployer.address.toLowerCase()) {
+    throw new Error(
+      "STABLEFLOW_SETTLEMENT_RECIPIENT must differ from the deployment wallet. A payment to yourself is rejected by FTestXRP."
+    );
+  }
 
   console.log("FXRP Asset Manager:", assetManagerAddress);
   console.log("FXRP resolved through registry:", fxrpAddress);
