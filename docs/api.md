@@ -127,7 +127,7 @@ Response:
 GET /v1/payment-intents/{id}
 ```
 
-中文注释：用这个接口查看当前支付状态。常见状态是 `pending_payment` 和 `paid`。
+中文注释：用这个接口查看当前支付状态。常见状态是 `pending_payment`、`paid` 和 `failed`。交易哈希一旦由钱包提交就会被保存；链上回执明确回滚时，后端会把订单转为 `failed` 并保留 `failure_reason`，不会无限停在 pending。
 
 Response:
 

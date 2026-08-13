@@ -13,9 +13,33 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrChainTransactionReverted = errors.New("chain transaction reverted")
 
 func NotFound(resource, id string) error {
 	return fmt.Errorf("%w: %s %s", ErrNotFound, resource, id)
+}
+
+type ChainTransactionRevertedError struct {
+	Reason string
+}
+
+func (e *ChainTransactionRevertedError) Error() string {
+	if e.Reason == "" {
+		return ErrChainTransactionReverted.Error()
+	}
+	return fmt.Sprintf("%s: %s", ErrChainTransactionReverted, e.Reason)
+}
+
+func (e *ChainTransactionRevertedError) Unwrap() error {
+	return ErrChainTransactionReverted
+}
+
+func NewChainTransactionRevertedError(reason string) error {
+	return &ChainTransactionRevertedError{Reason: reason}
+}
+
+func IsChainTransactionReverted(err error) bool {
+	return errors.Is(err, ErrChainTransactionReverted)
 }
 
 type ServiceRequestRepository interface {

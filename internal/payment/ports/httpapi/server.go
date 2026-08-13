@@ -141,6 +141,11 @@ func (s *Server) handlePaymentIntentByID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if len(parts) == 2 && parts[1] == "submitted-transaction" && r.Method == http.MethodPost {
+		s.handleSubmittedPaymentTransaction(w, r, id)
+		return
+	}
+
 	if len(parts) == 2 && parts[1] == "chain-transaction" && r.Method == http.MethodPost {
 		s.handleChainPaymentTransaction(w, r, id)
 		return
@@ -164,6 +169,24 @@ func (s *Server) handlePaymentIntentByID(w http.ResponseWriter, r *http.Request)
 
 type submitTransactionBody struct {
 	TxHash string `json:"tx_hash"`
+}
+
+func (s *Server) handleSubmittedPaymentTransaction(w http.ResponseWriter, r *http.Request, id string) {
+	var body submitTransactionBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	intent, err := s.service.RecordPaymentSubmission(r.Context(), application.RecordPaymentSubmissionCommand{
+		PaymentIntentID: id,
+		TxHash:          body.TxHash,
+	})
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"payment_intent": intent})
 }
 
 func (s *Server) handlePaymentTransaction(w http.ResponseWriter, r *http.Request, id string) {

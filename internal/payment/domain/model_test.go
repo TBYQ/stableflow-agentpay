@@ -81,6 +81,27 @@ func TestPaymentIntentRequiresTransactionHash(t *testing.T) {
 	}
 }
 
+func TestPaymentIntentRecordsSubmissionAndThenFails(t *testing.T) {
+	now := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
+	intent, err := NewPaymentIntent("pi_001", "sr_001", "1.00", "FXRP", 114, "", "", now)
+	if err != nil {
+		t.Fatalf("new payment intent: %v", err)
+	}
+
+	if err := intent.RecordSubmission("0xreverted", now.Add(time.Minute)); err != nil {
+		t.Fatalf("record transaction: %v", err)
+	}
+	if err := intent.Fail("0xreverted", "Coston2 receipt status is reverted", now.Add(2*time.Minute)); err != nil {
+		t.Fatalf("mark payment failed: %v", err)
+	}
+	if intent.Status != PaymentFailed {
+		t.Fatalf("expected status %s, got %s", PaymentFailed, intent.Status)
+	}
+	if intent.TxHash != "0xreverted" || intent.FailureReason == "" {
+		t.Fatalf("expected failed payment to retain hash and reason: %#v", intent)
+	}
+}
+
 func TestLedgerEntryRequiresPaidPaymentIntent(t *testing.T) {
 	now := time.Date(2026, 7, 5, 10, 0, 0, 0, time.UTC)
 	intent, err := NewPaymentIntent("pi_001", "sr_001", "1.00", "C2FLR", 114, "", "", now)

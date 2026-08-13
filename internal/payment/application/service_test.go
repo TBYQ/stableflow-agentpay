@@ -272,6 +272,72 @@ func TestConfirmPaymentFromChainRejectsMismatchedPaymentIntentID(t *testing.T) {
 	}
 }
 
+func TestConfirmPaymentFromChainMarksRevertedTransactionFailed(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, revertedChainVerifier{})
+
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{
+		AgentID:     "market-research-agent",
+		ServiceID:   "premium-market-report",
+		Description: "FXRP checkout",
+	})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{
+		ServiceRequestID: request.ID,
+		Amount:           "0.01",
+		Asset:            "FXRP",
+		ChainID:          114,
+	})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+	if _, err := service.RecordPaymentSubmission(ctx, application.RecordPaymentSubmissionCommand{PaymentIntentID: intent.ID, TxHash: "0xreverted"}); err != nil {
+		t.Fatalf("record payment submission: %v", err)
+	}
+
+	result, err := service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{PaymentIntentID: intent.ID, TxHash: "0xreverted"})
+	if err != nil {
+		t.Fatalf("confirm reverted payment: %v", err)
+	}
+	if result.PaymentIntent.Status != domain.PaymentFailed {
+		t.Fatalf("expected failed status, got %s", result.PaymentIntent.Status)
+	}
+	if result.PaymentIntent.FailureReason == "" {
+		t.Fatal("expected failure reason")
+	}
+}
+
+func TestConfirmPaymentFromChainDoesNotFailAnIntentWithoutMatchingSubmittedHash(t *testing.T) {
+	ctx := context.Background()
+	store := memory.NewStore()
+	service := newTestServiceWithStore(store, revertedChainVerifier{})
+
+	request, err := service.CreateServiceRequest(ctx, application.CreateServiceRequestCommand{AgentID: "market-research-agent", ServiceID: "premium-market-report", Description: "FXRP checkout"})
+	if err != nil {
+		t.Fatalf("create service request: %v", err)
+	}
+	intent, err := service.CreatePaymentIntent(ctx, application.CreatePaymentIntentCommand{ServiceRequestID: request.ID, Amount: "0.01", Asset: "FXRP", ChainID: 114})
+	if err != nil {
+		t.Fatalf("create payment intent: %v", err)
+	}
+
+	_, err = service.ConfirmPaymentFromChain(ctx, application.ConfirmPaymentFromChainCommand{PaymentIntentID: intent.ID, TxHash: "0xunrecorded"})
+	if !errors.Is(err, domain.ErrInvalidStatusTransition) {
+		t.Fatalf("expected rejected unrecorded transaction, got %v", err)
+	}
+
+	stored, err := service.GetPaymentIntent(ctx, intent.ID)
+	if err != nil {
+		t.Fatalf("get payment intent: %v", err)
+	}
+	if stored.Status != domain.PaymentPending {
+		t.Fatalf("expected pending status, got %s", stored.Status)
+	}
+}
+
 type fakeChainVerifier struct {
 	paymentIntentID string
 	txHash          string
@@ -279,6 +345,12 @@ type fakeChainVerifier struct {
 	amountWei       string
 	serviceID       string
 	chainID         int64
+}
+
+type revertedChainVerifier struct{}
+
+func (revertedChainVerifier) VerifyPayment(context.Context, string) (*application.RecordedChainPayment, error) {
+	return nil, application.NewChainTransactionRevertedError("Coston2 receipt status is reverted")
 }
 
 func (v fakeChainVerifier) VerifyPayment(ctx context.Context, txHash string) (*application.RecordedChainPayment, error) {

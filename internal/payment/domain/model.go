@@ -77,6 +77,7 @@ type PaymentIntent struct {
 	PaymentContract  string        `json:"payment_contract"`
 	WebhookURL       string        `json:"webhook_url"`
 	TxHash           string        `json:"tx_hash"`
+	FailureReason    string        `json:"failure_reason,omitempty"`
 	CreatedAt        time.Time     `json:"created_at"`
 	UpdatedAt        time.Time     `json:"updated_at"`
 }
@@ -112,6 +113,23 @@ func NewPaymentIntent(id, serviceRequestID, amount, asset string, chainID int64,
 	}, nil
 }
 
+func (p *PaymentIntent) RecordSubmission(txHash string, now time.Time) error {
+	txHash = strings.TrimSpace(txHash)
+	if txHash == "" {
+		return fmt.Errorf("%w: transaction hash is required", ErrValidation)
+	}
+	if p.Status != PaymentPending {
+		return fmt.Errorf("%w: payment intent %s cannot record a transaction from %s", ErrInvalidStatusTransition, p.ID, p.Status)
+	}
+	if p.TxHash != "" && !strings.EqualFold(p.TxHash, txHash) {
+		return fmt.Errorf("%w: payment intent %s already has a different submitted transaction", ErrInvalidStatusTransition, p.ID)
+	}
+
+	p.TxHash = txHash
+	p.UpdatedAt = now
+	return nil
+}
+
 func (p *PaymentIntent) Confirm(txHash string, now time.Time) error {
 	txHash = strings.TrimSpace(txHash)
 	if txHash == "" {
@@ -128,9 +146,42 @@ func (p *PaymentIntent) Confirm(txHash string, now time.Time) error {
 	if p.Status != PaymentPending {
 		return fmt.Errorf("%w: payment intent %s cannot be confirmed from %s", ErrInvalidStatusTransition, p.ID, p.Status)
 	}
+	if p.TxHash != "" && !strings.EqualFold(p.TxHash, txHash) {
+		return fmt.Errorf("%w: payment intent %s already has a different submitted transaction", ErrInvalidStatusTransition, p.ID)
+	}
 
 	p.Status = PaymentPaid
 	p.TxHash = txHash
+	p.FailureReason = ""
+	p.UpdatedAt = now
+	return nil
+}
+
+func (p *PaymentIntent) Fail(txHash, reason string, now time.Time) error {
+	txHash = strings.TrimSpace(txHash)
+	reason = strings.TrimSpace(reason)
+	if txHash == "" {
+		return fmt.Errorf("%w: transaction hash is required", ErrValidation)
+	}
+	if reason == "" {
+		return fmt.Errorf("%w: payment failure reason is required", ErrValidation)
+	}
+	if p.Status == PaymentFailed {
+		if strings.EqualFold(p.TxHash, txHash) {
+			return nil
+		}
+		return fmt.Errorf("%w: payment intent %s already failed with a different transaction", ErrInvalidStatusTransition, p.ID)
+	}
+	if p.Status != PaymentPending {
+		return fmt.Errorf("%w: payment intent %s cannot fail from %s", ErrInvalidStatusTransition, p.ID, p.Status)
+	}
+	if p.TxHash != "" && !strings.EqualFold(p.TxHash, txHash) {
+		return fmt.Errorf("%w: payment intent %s already has a different submitted transaction", ErrInvalidStatusTransition, p.ID)
+	}
+
+	p.Status = PaymentFailed
+	p.TxHash = txHash
+	p.FailureReason = reason
 	p.UpdatedAt = now
 	return nil
 }

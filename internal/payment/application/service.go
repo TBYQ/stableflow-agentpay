@@ -113,6 +113,25 @@ func (s *Service) ListServiceRequests(ctx context.Context) ([]domain.ServiceRequ
 	return s.serviceRequests.ListServiceRequests(ctx)
 }
 
+type RecordPaymentSubmissionCommand struct {
+	PaymentIntentID string
+	TxHash          string
+}
+
+func (s *Service) RecordPaymentSubmission(ctx context.Context, cmd RecordPaymentSubmissionCommand) (*domain.PaymentIntent, error) {
+	intent, err := s.paymentIntents.GetPaymentIntent(ctx, cmd.PaymentIntentID)
+	if err != nil {
+		return nil, err
+	}
+	if err := intent.RecordSubmission(cmd.TxHash, s.clock.Now()); err != nil {
+		return nil, err
+	}
+	if err := s.paymentIntents.SavePaymentIntent(ctx, intent); err != nil {
+		return nil, err
+	}
+	return intent, nil
+}
+
 type ConfirmPaymentCommand struct {
 	PaymentIntentID string
 	TxHash          string
@@ -139,6 +158,9 @@ func (s *Service) ConfirmPaymentFromChain(ctx context.Context, cmd ConfirmPaymen
 
 	chainPayment, err := s.chainVerifier.VerifyPayment(ctx, cmd.TxHash)
 	if err != nil {
+		if errors.Is(err, ErrChainTransactionReverted) {
+			return s.failPaymentFromChain(ctx, cmd, err)
+		}
 		return nil, err
 	}
 	if chainPayment.PaymentIntentID != cmd.PaymentIntentID {
@@ -178,6 +200,26 @@ func (s *Service) ConfirmPaymentFromChain(ctx context.Context, cmd ConfirmPaymen
 		PaymentIntentID: cmd.PaymentIntentID,
 		TxHash:          chainPayment.TxHash,
 	})
+}
+
+func (s *Service) failPaymentFromChain(ctx context.Context, cmd ConfirmPaymentFromChainCommand, chainErr error) (*ConfirmPaymentResult, error) {
+	intent, err := s.paymentIntents.GetPaymentIntent(ctx, cmd.PaymentIntentID)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(intent.TxHash, strings.TrimSpace(cmd.TxHash)) {
+		return nil, fmt.Errorf("%w: payment intent %s does not have the submitted transaction being verified", domain.ErrInvalidStatusTransition, intent.ID)
+	}
+	if err := intent.Fail(cmd.TxHash, chainErr.Error(), s.clock.Now()); err != nil {
+		return nil, err
+	}
+	if err := s.paymentIntents.SavePaymentIntent(ctx, intent); err != nil {
+		return nil, err
+	}
+	return &ConfirmPaymentResult{
+		PaymentIntent: intent,
+		Summary:       fmt.Sprintf("Payment intent %s failed on chain: %s", intent.ID, intent.FailureReason),
+	}, nil
 }
 
 // paymentAmountBaseUnits converts the quoted decimal amount into the smallest

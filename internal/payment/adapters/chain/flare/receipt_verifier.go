@@ -52,7 +52,7 @@ func (v *ReceiptVerifier) VerifyPayment(ctx context.Context, txHash string) (*ap
 		return nil, fmt.Errorf("transaction receipt not found")
 	}
 	if receipt.Status != "0x1" {
-		return nil, fmt.Errorf("transaction was not successful")
+		return nil, application.NewChainTransactionRevertedError("Coston2 receipt status is reverted")
 	}
 
 	for _, log := range receipt.Logs {

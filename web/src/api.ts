@@ -19,6 +19,7 @@ export type PaymentIntent = {
   payment_contract: string;
   webhook_url: string;
   tx_hash: string;
+  failure_reason?: string;
   created_at: string;
   updated_at: string;
 };
@@ -58,8 +59,8 @@ export type PaymentQuote = {
 
 export type ConfirmPaymentResponse = {
   payment_intent: PaymentIntent;
-  ledger_entry: LedgerEntry;
-  webhook_event: WebhookEvent;
+  ledger_entry?: LedgerEntry;
+  webhook_event?: WebhookEvent;
   summary: string;
 };
 
@@ -145,6 +146,12 @@ export async function confirmPaymentWithChainReceipt(paymentIntentId: string, tx
 
 export async function confirmPaymentWithSubmittedHash(paymentIntentId: string, txHash: string) {
   return postJSON<ConfirmPaymentResponse>(`/v1/payment-intents/${paymentIntentId}/transaction`, {
+    tx_hash: txHash
+  });
+}
+
+export async function recordPaymentSubmission(paymentIntentId: string, txHash: string) {
+  return postJSON<{ payment_intent: PaymentIntent }>(`/v1/payment-intents/${paymentIntentId}/submitted-transaction`, {
     tx_hash: txHash
   });
 }

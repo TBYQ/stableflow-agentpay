@@ -31,6 +31,7 @@ import {
   PaymentIntent,
   PaymentQuote,
   quotePayment,
+  recordPaymentSubmission,
   seedDemoData,
   ServiceRequest,
   WebhookEvent
@@ -77,6 +78,7 @@ export function App() {
 
   const latestWebhook = webhookEvent || webhookEvents[0] || null;
   const isPaid = paymentIntent?.status === "paid";
+  const isFailed = paymentIntent?.status === "failed";
   const isLiveFTSO = quote?.price_source.startsWith("flare-ftso-v2-") || false;
   const feedAsset = paymentAsset === "FXRP" ? "XRP" : "FLR";
   const quoteValue = quote ? `${quote.amount} ${quote.asset}` : `-- ${paymentAsset}`;
@@ -256,7 +258,13 @@ export function App() {
           value: parseEther(amount)
         });
       }
+      const recorded = await recordPaymentSubmission(paymentIntent.id, hash);
+      setPaymentIntent(recorded.payment_intent);
       setTxHash(hash);
+      setActiveView("payments");
+      setEvents((current) => [`${paymentAsset} transaction submitted: ${shortHash(hash)}`, ...current]);
+      await publicClient.waitForTransactionReceipt({ hash });
+      await confirmSubmittedPayment(paymentIntent.id, hash);
     });
   }
 
@@ -264,14 +272,41 @@ export function App() {
     await runStep("Verifying onchain receipt", async () => {
       if (!paymentIntent) throw new Error("Create a checkout first.");
       if (!txHash) throw new Error("Submit a Flare transaction first, or paste a transaction hash.");
-      const response = useChainVerification
-        ? await confirmPaymentWithChainReceipt(paymentIntent.id, txHash)
-        : await confirmPaymentWithSubmittedHash(paymentIntent.id, txHash);
-      setPaymentIntent(response.payment_intent);
-      setLedgerEntry(response.ledger_entry);
-      setWebhookEvent(response.webhook_event);
-      setSummary(response.summary);
+      await confirmSubmittedPayment(paymentIntent.id, txHash);
     });
+  }
+
+  async function confirmSubmittedPayment(intentID: string, hash: string) {
+    const response = useChainVerification
+      ? await confirmPaymentWithChainReceipt(intentID, hash)
+      : await confirmPaymentWithSubmittedHash(intentID, hash);
+    setPaymentIntent(response.payment_intent);
+    setLedgerEntry(response.ledger_entry || null);
+    setWebhookEvent(response.webhook_event || null);
+    setSummary(response.summary);
+    setActiveView("payments");
+  }
+
+  function handleResumePayment(intent: PaymentIntent) {
+    const request = serviceRequests.find((candidate) => candidate.id === intent.service_request_id);
+    if (!request) {
+      setEvents((current) => [`Could not find the service request for ${shortHash(intent.id)}`, ...current]);
+      return;
+    }
+    setServiceRequest(request);
+    setAgentID(request.agent_id || "market-research-agent");
+    setServiceID(request.service_id);
+    setDescription(request.description);
+    setPaymentAsset(intent.asset as PaymentAsset);
+    setContractAddress(intent.payment_contract);
+    setWebhookURL(intent.webhook_url);
+    setAmount(intent.amount);
+    setPaymentIntent(intent);
+    setLedgerEntry(null);
+    setWebhookEvent(null);
+    setSummary(intent.failure_reason || "");
+    setTxHash(intent.tx_hash);
+    setEvents((current) => [`Payment record resumed: ${shortHash(intent.id)}`, ...current]);
   }
 
   async function handleSeedDemoData() {
@@ -287,8 +322,8 @@ export function App() {
         webhook_url: webhookURL
       });
       setPaymentIntent(response.payment_intent);
-      setLedgerEntry(response.ledger_entry);
-      setWebhookEvent(response.webhook_event);
+      setLedgerEntry(response.ledger_entry || null);
+      setWebhookEvent(response.webhook_event || null);
       setTxHash(response.payment_intent.tx_hash);
       setSummary(response.summary);
       const requests = await listServiceRequests();
@@ -303,7 +338,7 @@ export function App() {
     if (!paymentIntent) return handleCreateIntent();
     if (!walletAddress) return handleConnectWallet();
     if (!txHash) return handlePayOnFlare();
-    if (!isPaid) return handleConfirmBackend();
+    if (!isPaid && !isFailed) return handleConfirmBackend();
     resetCheckoutState();
     setEvents((current) => ["Ready for a new checkout on this agent request", ...current]);
   }
@@ -316,9 +351,9 @@ export function App() {
       ? { label: "Connect MetaMask", icon: <Wallet size={18} /> }
       : !txHash
         ? { label: paymentAsset === "FXRP" ? `Approve & pay ${quoteValue}` : `Pay ${quoteValue}`, icon: <Send size={18} /> }
-        : !isPaid
+        : !isPaid && !isFailed
           ? { label: "Verify payment", icon: <ShieldCheck size={18} /> }
-          : { label: "Start another checkout", icon: <ReceiptText size={18} /> };
+          : { label: isFailed ? "Create a replacement checkout" : "Start another checkout", icon: <ReceiptText size={18} /> };
 
   return (
     <div className="checkout-page">
@@ -408,6 +443,8 @@ export function App() {
           </button>
           <p className="checkout-note">{!serviceRequest ? "Create the agent request before generating a checkout." : paymentAsset === "FXRP" && !txHash ? "FXRP uses an approval, then a settlement confirmation." : "The payment receipt is verified before access is unlocked."}</p>
 
+          {isFailed && <div className="payment-failure" role="alert"><ShieldCheck size={16} /><div><strong>Onchain payment failed</strong><span>{paymentIntent?.failure_reason || "The Coston2 transaction reverted. Create a new checkout to retry."}</span></div></div>}
+
           <div className="checkout-progress" aria-label="Payment progress">
             <ProgressStep complete={Boolean(serviceRequest)} active={!serviceRequest} label="Request" />
             <ProgressStep complete={Boolean(paymentIntent)} active={Boolean(serviceRequest) && !paymentIntent} label="Checkout" />
@@ -454,7 +491,7 @@ export function App() {
           </div>
           <div className="table-wrap">
             {activeView === "requests" && <ServiceRequestTable requests={serviceRequests} onUse={handleUseServiceRequest} />}
-            {activeView === "payments" && <PaymentIntentTable intents={paymentIntents} />}
+            {activeView === "payments" && <PaymentIntentTable intents={paymentIntents} onResume={handleResumePayment} />}
             {activeView === "ledger" && <LedgerTable entries={ledgerEntries} />}
             {activeView === "webhooks" && <WebhookTable events={webhookEvents} />}
           </div>
@@ -482,8 +519,8 @@ function ServiceRequestTable({ requests, onUse }: { requests: ServiceRequest[]; 
   return <table><thead><tr><th>Agent</th><th>Service request</th><th>Service</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody>{requests.length === 0 ? <EmptyRow colSpan={6} label="No agent requests yet" /> : requests.map((request) => <tr key={request.id}><td>{request.agent_id || "legacy-request"}</td><td><strong>{request.id}</strong></td><td>{request.service_id}</td><td><StatusPill value={request.status} /></td><td>{formatDate(request.created_at)}</td><td><button className="table-action" type="button" onClick={() => onUse(request)}>Use <ArrowRight size={13} /></button></td></tr>)}</tbody></table>;
 }
 
-function PaymentIntentTable({ intents }: { intents: PaymentIntent[] }) {
-  return <table><thead><tr><th>Payment intent</th><th>Status</th><th>Amount</th><th>Transaction</th><th>Created</th></tr></thead><tbody>{intents.length === 0 ? <EmptyRow colSpan={5} label="No payment intents yet" /> : intents.map((intent) => <tr key={intent.id}><td><strong>{intent.id}</strong></td><td><StatusPill value={intent.status} /></td><td>{intent.amount} {intent.asset}</td><td>{shortHash(intent.tx_hash) || "-"}</td><td>{formatDate(intent.created_at)}</td></tr>)}</tbody></table>;
+function PaymentIntentTable({ intents, onResume }: { intents: PaymentIntent[]; onResume: (intent: PaymentIntent) => void }) {
+  return <table><thead><tr><th>Payment intent</th><th>Status</th><th>Amount</th><th>Transaction</th><th>Reason</th><th>Action</th><th>Created</th></tr></thead><tbody>{intents.length === 0 ? <EmptyRow colSpan={7} label="No payment intents yet" /> : intents.map((intent) => <tr key={intent.id}><td><strong>{intent.id}</strong></td><td><StatusPill value={intent.status} /></td><td>{intent.amount} {intent.asset}</td><td>{shortHash(intent.tx_hash) || "-"}</td><td>{intent.failure_reason || "-"}</td><td>{intent.status === "pending_payment" && intent.tx_hash ? <button className="table-action" type="button" onClick={() => onResume(intent)}>Verify <ArrowRight size={13} /></button> : "-"}</td><td>{formatDate(intent.created_at)}</td></tr>)}</tbody></table>;
 }
 
 function LedgerTable({ entries }: { entries: LedgerEntry[] }) {

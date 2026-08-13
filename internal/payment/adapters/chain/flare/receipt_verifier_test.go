@@ -1,10 +1,16 @@
 package flare
 
 import (
+	"context"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/TBYQ/stableflow-agentpay/internal/payment/application"
 )
 
 func TestParsePaymentRecordedLog(t *testing.T) {
@@ -94,5 +100,25 @@ func TestTopicAddress(t *testing.T) {
 	}
 	if strings.Contains(address, "000000000000") {
 		t.Fatalf("topic address should not include left padding")
+	}
+}
+
+func TestVerifyPaymentClassifiesRevertedReceipt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(rpcReceiptResponse{
+			JSONRPC: "2.0",
+			ID:      1,
+			Result:  &rpcReceipt{Status: "0x0"},
+		})
+	}))
+	defer server.Close()
+
+	verifier, err := NewReceiptVerifier(server.URL, "0x1111111111111111111111111111111111111111")
+	if err != nil {
+		t.Fatalf("new receipt verifier: %v", err)
+	}
+	_, err = verifier.VerifyPayment(context.Background(), "0x1111111111111111111111111111111111111111111111111111111111111111")
+	if !application.IsChainTransactionReverted(err) {
+		t.Fatalf("expected reverted transaction error, got %v", err)
 	}
 }
