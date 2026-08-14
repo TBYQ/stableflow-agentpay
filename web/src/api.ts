@@ -1,4 +1,6 @@
-const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
+// An empty base URL keeps the public single-service demo on the same origin.
+// Developers can still point Vite at a separate local API through VITE_API_BASE_URL.
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "";
 
 export type ServiceRequest = {
   id: string;

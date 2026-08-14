@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/chain/flare"
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/adapters/filejson"
@@ -40,7 +42,11 @@ func main() {
 	}
 	var webhookSender application.WebhookSender = webhook.NewLocalSigner(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"))
 	if os.Getenv("STABLEFLOW_WEBHOOK_DELIVERY") == "http" {
-		webhookSender = webhook.NewHTTPSender(envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"), nil)
+		webhookSender = webhook.NewHTTPSenderWithAllowedHosts(
+			envOrDefault("STABLEFLOW_WEBHOOK_SECRET", "dev-secret"),
+			nil,
+			strings.Split(os.Getenv("STABLEFLOW_WEBHOOK_HOST_ALLOWLIST"), ","),
+		)
 	}
 
 	var chainVerifier application.ChainPaymentVerifier
@@ -68,9 +74,13 @@ func main() {
 		IDs:             application.NewULIDGenerator(),
 	})
 
-	addr := envOrDefault("STABLEFLOW_HTTP_ADDR", ":8080")
+	addr := envOrDefault("STABLEFLOW_HTTP_ADDR", ":"+envOrDefault("PORT", "8080"))
 
 	server := httpapi.NewServer(service)
+	if staticDir := envOrDefault("STABLEFLOW_STATIC_DIR", "web/dist"); directoryExists(staticDir) {
+		server.SetStaticDir(staticDir)
+		log.Printf("Serving checkout UI from %s", staticDir)
+	}
 	log.Printf("StableFlow AgentPay API listening on %s", addr)
 	if err := http.ListenAndServe(addr, server.Routes()); err != nil {
 		log.Fatal(err)
@@ -105,4 +115,9 @@ func envOrDefault(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func directoryExists(path string) bool {
+	info, err := os.Stat(filepath.Clean(path))
+	return err == nil && info.IsDir()
 }

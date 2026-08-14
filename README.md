@@ -274,6 +274,24 @@ VITE_API_BASE_URL=http://127.0.0.1:8080
 VITE_STABLEFLOW_PAYMENT_CONTRACT=0x...
 ```
 
+## Public Demo Deployment
+
+The repository includes a single-service Docker deployment for Render. The Go
+service hosts both the API and the built React checkout, so a judge only needs
+one public URL. The public demo uses the deployed Coston2 contract and the
+live FTSOv2 quote provider.
+
+1. Create a Render account and select **New > Blueprint**.
+2. Connect `https://github.com/TBYQ/stableflow-agentpay` and use `render.yaml`.
+3. Deploy the `stableflow-agentpay-demo` service.
+4. Open the resulting `https://...onrender.com` URL and connect MetaMask to
+   Flare Coston2.
+
+The free Render plan may restart and erase its JSON demo records. That does not
+affect Coston2 transactions, which remain visible in the explorer. The public
+demo only permits HTTPS webhooks to `webhook.site`; change
+`STABLEFLOW_WEBHOOK_HOST_ALLOWLIST` before using another receiver.
+
 ## API Overview
 
 Core endpoints:

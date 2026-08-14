@@ -3,7 +3,10 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/application"
@@ -11,7 +14,8 @@ import (
 )
 
 type Server struct {
-	service *application.Service
+	service   *application.Service
+	staticDir string
 }
 
 func NewServer(service *application.Service) *Server {
@@ -20,6 +24,7 @@ func NewServer(service *application.Service) *Server {
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/v1/service-requests", s.handleServiceRequests)
 	mux.HandleFunc("/v1/payment-intents", s.handlePaymentIntents)
 	mux.HandleFunc("/v1/payment-intents/", s.handlePaymentIntentByID)
@@ -27,7 +32,48 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/v1/webhook-events", s.handleWebhookEvents)
 	mux.HandleFunc("/v1/quote", s.handleQuote)
 	mux.HandleFunc("/v1/demo/seed", s.handleDemoSeed)
-	return withCORS(mux)
+	return withCORS(s.withStaticFiles(mux))
+}
+
+func (s *Server) SetStaticDir(path string) {
+	s.staticDir = filepath.Clean(path)
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) withStaticFiles(api http.Handler) http.Handler {
+	if s.staticDir == "" {
+		return api
+	}
+
+	fileServer := http.FileServer(http.Dir(s.staticDir))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/") || r.URL.Path == "/healthz" {
+			api.ServeHTTP(w, r)
+			return
+		}
+
+		assetPath := strings.TrimPrefix(r.URL.Path, "/")
+		if assetPath != "" && fs.ValidPath(assetPath) {
+			candidate := filepath.Join(s.staticDir, filepath.FromSlash(assetPath))
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// ServeFile rejects paths containing ".." even when the target file is
+		// safe. Reset the request path for the SPA fallback instead.
+		fallbackRequest := r.Clone(r.Context())
+		fallbackRequest.URL.Path = "/"
+		http.ServeFile(w, fallbackRequest, filepath.Join(s.staticDir, "index.html"))
+	})
 }
 
 type createServiceRequestBody struct {

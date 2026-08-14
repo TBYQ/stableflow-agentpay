@@ -1,0 +1,12 @@
+.git
+.idea
+node_modules
+**/node_modules
+web/dist
+contracts/artifacts
+contracts/cache
+data
+*.local.json
+work-*.log
+.env
+**/.env

@@ -39,7 +39,7 @@ import {
 import { coston2, requestCoston2Network } from "./flare";
 import { erc20ApprovalABI, stableFlowPaymentABI } from "./stableflowContract";
 
-const defaultContract = import.meta.env.VITE_STABLEFLOW_PAYMENT_CONTRACT || "";
+const defaultContract = import.meta.env.VITE_STABLEFLOW_PAYMENT_CONTRACT || "0x895F16cD2d140cA8C02674A3902C5e4f821932D4";
 
 type DataView = "requests" | "payments" | "ledger" | "webhooks";
 type PaymentAsset = "C2FLR" | "FXRP";

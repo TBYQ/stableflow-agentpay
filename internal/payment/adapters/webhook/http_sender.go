@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/TBYQ/stableflow-agentpay/internal/payment/application"
@@ -16,25 +18,40 @@ import (
 )
 
 type HTTPSender struct {
-	secret string
-	client *http.Client
-	now    func() time.Time
+	secret           string
+	client           *http.Client
+	now              func() time.Time
+	allowedHostnames map[string]struct{}
 }
 
 func NewHTTPSender(secret string, client *http.Client) HTTPSender {
+	return NewHTTPSenderWithAllowedHosts(secret, client, nil)
+}
+
+func NewHTTPSenderWithAllowedHosts(secret string, client *http.Client, allowedHosts []string) HTTPSender {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
+	allowedHostnames := make(map[string]struct{}, len(allowedHosts))
+	for _, host := range allowedHosts {
+		if normalized := strings.ToLower(strings.TrimSpace(host)); normalized != "" {
+			allowedHostnames[normalized] = struct{}{}
+		}
+	}
 	return HTTPSender{
-		secret: secret,
-		client: client,
-		now:    time.Now,
+		secret:           secret,
+		client:           client,
+		now:              time.Now,
+		allowedHostnames: allowedHostnames,
 	}
 }
 
 func (s HTTPSender) SendPaymentPaid(ctx context.Context, message application.PaymentPaidMessage) (application.WebhookDelivery, error) {
 	if message.WebhookURL == "" {
 		return application.WebhookDelivery{Status: domain.WebhookFailed}, fmt.Errorf("webhook url is empty")
+	}
+	if err := s.validateWebhookURL(message.WebhookURL); err != nil {
+		return application.WebhookDelivery{DeliveryURL: message.WebhookURL, Status: domain.WebhookFailed}, err
 	}
 
 	payload := paymentPaidPayload{
@@ -90,6 +107,20 @@ func (s HTTPSender) SendPaymentPaid(ctx context.Context, message application.Pay
 		Signature:   signature,
 		Status:      domain.WebhookDelivered,
 	}, nil
+}
+
+func (s HTTPSender) validateWebhookURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if len(s.allowedHostnames) == 0 {
+		return nil
+	}
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+		return fmt.Errorf("webhook url must be a valid HTTPS URL")
+	}
+	if _, ok := s.allowedHostnames[strings.ToLower(parsed.Hostname())]; !ok {
+		return fmt.Errorf("webhook host %q is not allowed", parsed.Hostname())
+	}
+	return nil
 }
 
 func (s HTTPSender) sign(body []byte, ts time.Time) string {

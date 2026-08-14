@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: stableflow-agentpay-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: STABLEFLOW_STORE_PATH
+        value: /var/lib/stableflow/stableflow.json
+      - key: STABLEFLOW_QUOTE_MODE
+        value: ftso
+      - key: FLARE_RPC_URL
+        value: https://coston2-api.flare.network/ext/C/rpc
+      - key: STABLEFLOW_PAYMENT_CONTRACT
+        value: 0x895F16cD2d140cA8C02674A3902C5e4f821932D4
+      - key: STABLEFLOW_WEBHOOK_DELIVERY
+        value: http
+      - key: STABLEFLOW_WEBHOOK_HOST_ALLOWLIST
+        value: webhook.site
+      - key: STABLEFLOW_WEBHOOK_SECRET
+        generateValue: true
